@@ -1,3 +1,4 @@
+-- 0001_init.sql
 CREATE TABLE IF NOT EXISTS domains (
   domain TEXT PRIMARY KEY,
   org_email TEXT NOT NULL,
