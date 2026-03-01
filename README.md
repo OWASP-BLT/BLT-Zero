@@ -1,72 +1,172 @@
 # BLT-Zero
 
-**Zero Trust Vulnerability Reporting — without a trace.**
+**Zero-Trust Vulnerability Reporting — ciphertext-only delivery.**
 
-BLT-Zero is a [Cloudflare Python Workers](https://developers.cloudflare.com/workers/languages/python/) powered site that lets security researchers report vulnerabilities directly and securely to target organizations — with **zero tracking** of sensitive data.
+BLT-Zero is a Cloudflare Workers site that lets security researchers submit sensitive vulnerability reports **encrypted in the browser** using the target organization’s **public key**. The Worker receives **ciphertext only**, forwards it to the organization’s security inbox, and stores only minimal metadata.
 
-It is an independent application maintained under the [OWASP BLT](https://github.com/OWASP-BLT/BLT) project family, operating on its own infrastructure with no shared servers or database.
+It is an independent application under the OWASP BLT project family, intended to run on its own deployment and database.
 
 ---
 
 ## 🔐 What is BLT-Zero?
 
-BLT-Zero provides a **zero-trust workflow** for delivering vulnerability reports securely. Sensitive vulnerability details are **never stored** — they exist only in memory while the encrypted package is being built, then delivered directly to the recipient organization.
+BLT-Zero provides a **zero-trust workflow** for delivering vulnerability reports securely:
+
+- **Encryption happens client-side (browser)** using the Web Crypto API.
+- **BLT-Zero never receives plaintext** vulnerability details.
+- **Organizations decrypt locally** using their private key.
 
 ### Key Principles
 
 | Principle | Description |
-|-----------|-------------|
-| **Direct Delivery** | Reports are encrypted with the recipient organization's public key so only they can decrypt them. |
-| **Minimal Metadata** | Only non-sensitive metadata (e.g., domain name, username) and artifact hashes are stored — never vulnerability descriptions or PoC details. |
-| **Ephemeral Handling** | Full vulnerability details exist only in memory or ephemeral Cloudflare Worker storage while building the encrypted package. Plaintext is never written to permanent storage. |
-| **Out-of-Band Secrets** | Any symmetric passwords are delivered through a separate channel (phone, SMS, or secure messaging) and are never stored alongside report content. |
+|----------|-------------|
+| **Ciphertext-only server** | Worker receives only an encrypted JSON package (no plaintext). |
+| **Org-only decryption** | Reports are encrypted to the organization’s public key; only their private key can decrypt. |
+| **Minimal metadata** | Only domain, optional username, hash, and timestamps are stored in D1. |
+| **No tracking by design** | No analytics/cookies/fingerprinting in this project. |
+| **Abuse controls** | Rate limiting + optional Cloudflare Turnstile. |
 
 ---
 
 ## 🏗️ Architecture
 
-BLT-Zero runs entirely on **Cloudflare Workers** using Python, giving it:
+### Components
 
-- **No persistent server infrastructure** — serverless, edge-deployed execution.
-- **Ephemeral worker storage** — sensitive data never survives beyond request processing.
-- **Zero tracking** — no analytics, no fingerprinting, no user profiling.
-- **Independent deployment** — its own domain and infrastructure, separate from the main BLT application.
+- **Client (Browser)**
+  - Builds the report JSON in memory
+  - Encrypts it using **P-256 ECDH + HKDF(SHA-256) + AES-GCM**
+  - Sends only the encrypted package to the Worker
 
-### Encryption
+- **Worker (TypeScript)**
+  - Validates request + (optional) Turnstile
+  - Looks up the org public key for the domain from **D1**
+  - Emails the encrypted JSON package to the org inbox (SendGrid or MailChannels)
+  - Stores minimal metadata in D1 (no report content)
 
-Reports are encrypted using [age](https://age-encryption.org/) or OpenPGP with the recipient organization's public key. A symmetric password fallback is supported, delivered exclusively out-of-band.
-
----
-
-## ✨ Features
-
-- 🔒 End-to-end encrypted vulnerability report submission
-- 📭 Direct delivery to recipient organizations — no middleman storage of sensitive data
-- 🕵️ Zero tracking of reporters (no cookies, no analytics)
-- 🗝️ Public-key encryption with optional symmetric password (out-of-band delivery)
-- 📊 Minimal metadata storage for tracking, points, and program management
-- 🔗 Integration with main BLT for reporter points attribution
+- **D1 (SQLite)**
+  - `domains`: domain → org email + org public key (JWK) + key_id
+  - `submissions`: submission id + domain + optional username + artifact hash
+  - `rate_limits`: simple per-IP minute bucket counters
 
 ---
 
-## 🚀 How It Works
+## 🔒 Cryptography (implemented)
 
-1. **Reporter** visits BLT-Zero and fills in the vulnerability report form.
-2. The report is **encrypted in memory** using the target organization's public key.
-3. The **encrypted package is delivered** directly to the organization — plaintext details are never persisted.
-4. Only **minimal metadata** (domain, reporter username, artifact hash) is stored for points and tracking.
-5. If a symmetric password is used, it is sent **out-of-band** by the reporter (e.g., via phone or secure messaging).
+**Client-side encryption**
+- Org publishes a **P-256 public key** (JWK) to BLT-Zero (admin onboarding).
+- Browser generates an **ephemeral P-256 keypair**, performs **ECDH**, derives AES key via **HKDF**, encrypts with **AES-GCM**.
+- Output is a JSON “package” containing:
+  - `eph_pub_jwk`, `salt`, `iv`, `ciphertext`, `key_id`, `domain`, etc.
+
+**Decryption**
+- Organization uses the private key locally with the provided `tools/org_decrypt.py`
+- Produces `report.json` (plaintext) on the org side only.
+
+---
+
+## ✅ Features
+
+- 🔒 End-to-end encryption in the browser (Worker never sees plaintext)
+- 📧 Direct delivery to org security inbox (ciphertext attachment)
+- 🧾 Minimal storage: domain + optional username + artifact hash only
+- 🧑‍💼 Org onboarding page to register domain + public key and optionally send onboarding email
+- 🧰 Tools
+  - `tools/org_keygen.py` – generate org keypair locally
+  - `tools/org_decrypt.py` – decrypt incoming packages locally
+- 🛡️ Rate limiting
+- 🧩 Optional Turnstile
+  - Can be disabled for local dev using `DISABLE_TURNSTILE=true`
+- 📊 Optional points sync to main BLT
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 Workflow (end-to-end)
 
-- **Runtime**: [Cloudflare Workers](https://workers.cloudflare.com/) (Python)
-- **Encryption**: [age](https://age-encryption.org/) / OpenPGP
-- **Storage**: Minimal — Cloudflare KV or D1 for non-sensitive metadata only
-- **Integration**: OWASP BLT API for points attribution
+1. Org admin generates keypair locally (private stays with org).
+2. Org admin onboards domain + public key into BLT-Zero (`/admin/onboard`).
+3. Reporter submits report → browser encrypts → Worker receives ciphertext only.
+4. Worker emails ciphertext JSON attachment to org inbox + stores minimal metadata.
+5. Org decrypts locally using `tools/org_decrypt.py`.
 
 ---
+
+## 🛠️ Tech Stack
+
+- Runtime: Cloudflare Workers
+- Worker Language: TypeScript (best fit for Web Crypto + performance)
+- Crypto: Web Crypto API (ECDH P-256 + HKDF + AES-GCM)
+- DB: Cloudflare D1
+- Email: SendGrid (recommended) or MailChannels
+- Protection: optional Turnstile + rate limiting
+
+---
+
+### Installation
+
+1. Clone the repository:
+```bash
+git clone https://github.com/OWASP-BLT/BLT-Zero.git
+cd BLT-Zero
+```
+
+2. Install Wrangler (if not already installed):
+```bash
+npm install -g wrangler
+```
+
+3. Login to Cloudflare:
+```bash
+wrangler login
+```
+
+4. Create the D1 database:
+```bash
+wrangler d1 create blt_zero
+```
+
+5. Create `.dev.vars` file from `.dev.vars.example` and populate wrangler.toml with Database ID from previous step:
+
+6. Apply database migrations:
+```bash
+# For local development
+wrangler d1 migrations apply blt_zero --local
+
+# For production (remote database)
+wrangler d1 migrations apply blt_zero --remote
+```
+
+### Development
+
+Run the development server:
+```bash
+wrangler dev
+```
+
+The application will be available at `http://localhost:8787`
+
+### Deployment
+
+Deploy to Cloudflare Workers:
+```bash
+wrangler deploy
+```
+
+### Org Onboarding (Keys)
+
+1. Generate organization keypair locally:
+```bash
+python tools/org_keygen.py
+```
+
+This will generate:
+
+- `private_key.jwk` (keep this secret)
+- `public_key.jwk` (share this with BLT-Zero)
+
+2. Decrypt a received vulnerability report:
+```bash
+python tools/org_decrypt.py private_key.jwk package.json
+```
 
 ## 🤝 Contributing
 
