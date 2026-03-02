@@ -1,6 +1,7 @@
 name = "blt-zero"
 main = "src/worker.ts"
-compatibility_date = "2026-02-19"
+compatibility_date = "2026-02-28" # Use a current date
+compatibility_flags = ["python_workers"]
 
 [vars]
 APP_ORIGIN = "https://zero.owaspblt.org"
