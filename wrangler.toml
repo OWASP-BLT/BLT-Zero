@@ -19,4 +19,4 @@ TURNSTILE_SITE_KEY = "REPLACE_ME"
 [[d1_databases]]
 binding = "DB"
 database_name = "blt_zero"
-database_id = "replace id here"
+database_id = "0fd8d04c-f434-48a1-a5d2-617b49ce79ff
