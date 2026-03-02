@@ -89,7 +89,7 @@ async function sendEmail(
   // MailChannels
   const mailchannels: any = {
     personalizations: [{ to: [{ email: to }] }],
-    from: { email: "no-reply@zero.blt.owasp.org", name: "BLT-Zero" },
+    from: { email: "no-reply@blt-zero.owasp.org", name: "BLT-Zero" },
     subject,
     content: [{ type: "text/plain", value: body }],
   };

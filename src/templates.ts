@@ -408,7 +408,7 @@ document.getElementById("a").addEventListener("submit", async (e)=>{
 export function onboardingEmailBody(appOrigin: string, domain: string) {
   return `Hello Security Team,
 
-You have been onboarded to BLT-Zero (zero.blt.owasp.org) for domain: ${domain}
+You have been onboarded to BLT-Zero (blt-zero.owasp.org) for domain: ${domain}
 
 How it works:
 - Reporters encrypt in their browser using your public key.
