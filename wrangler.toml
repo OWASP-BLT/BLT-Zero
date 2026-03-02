@@ -4,7 +4,7 @@ compatibility_date = "2026-02-28" # Use a current date
 compatibility_flags = ["python_workers"]
 
 [vars]
-APP_ORIGIN = "https://blt-zero.owaspblt.org"
+APP_ORIGIN = "https://blt-zero.owasp.org"
 MAIN_BLT_API_URL = "https://api.owaspblt.org"
 POINTS_AWARD = "3"
 MAX_UPLOAD_BYTES = "3145728" # 3 MiB encrypted package cap
