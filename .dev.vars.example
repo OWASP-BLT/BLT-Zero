@@ -13,3 +13,7 @@ SENDGRID_API_KEY=...
 # Optional points sync
 # MAIN_BLT_API_URL=https://blt.owasp.org
 # MAIN_BLT_API_TOKEN=...
+
+# Footer commit info (set at deploy time)
+# GIT_COMMIT_SHA=
+# GIT_COMMIT_DATE=
