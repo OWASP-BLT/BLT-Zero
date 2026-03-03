@@ -1,10 +1,10 @@
 import json
-from worker import Response
-
+from workers import Response, Headers
+import base64
 
 def json_response(data, status=200):
     """Create a JSON response."""
-    return Response.json(data, status=status)
+    return Response.json(json.dumps(data), status=status, headers={"content-type": "application/json"})
 
 
 def html_response(html_str, status=200):

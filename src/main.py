@@ -1,10 +1,10 @@
 import json
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
-from worker import WorkerEntrypoint, Response
+from workers import WorkerEntrypoint, Response
 from js import URL, crypto as js_crypto
 
-from libs.utils import json_response, html_response
+from libs.utils import html_response
 from services.db import get_domain, upsert_domain, insert_submission, rate_limit_hit
 from services.email import send_email, sync_points
 from services.security import (
@@ -72,25 +72,25 @@ class Default(WorkerEntrypoint):
             try:
                 payload = await request.json()
             except:
-                return json_response({"error": "invalid json"}, 400)
+                return Response.json({"error": "invalid json"}, status=400)
             
             token = str(payload.get("admin_token", ""))
             turnstile_token = str(payload.get("turnstile_token", ""))
             
             if not token:
-                return json_response({"error": "admin_token required"}, 400)
+                return Response.json({"error": "admin_token required"}, status=400)
             if ts_enabled and not turnstile_token:
-                return json_response({"error": "turnstile_token required"}, 400)
+                return Response.json({"error": "turnstile_token required"}, status=400)
             
             # Admin auth
             admin_token = getattr(env, "ADMIN_TOKEN", None)
             if not admin_token or token != admin_token:
-                return json_response({"error": "unauthorized"}, 401)
+                return Response.json({"error": "unauthorized"}, status=401)
             
             # Turnstile verify (auto-pass if disabled)
             ok = await verify_turnstile(env, turnstile_token, ip)
             if not ok:
-                return json_response({"error": "turnstile failed"}, 403)
+                return Response.json({"error": "turnstile failed"}, status=403)
             
             domain = normalize_domain(payload.get("domain", ""))
             org_email = str(payload.get("org_email", "")).strip()
@@ -99,17 +99,17 @@ class Default(WorkerEntrypoint):
             send_onboarding_email = bool(payload.get("send_onboarding_email", False))
             
             if not domain or not org_email or not key_id or not public_key_jwk:
-                return json_response(
-                    {"error": "domain, org_email, key_id, public_key_jwk required"}, 400
+                return Response.json(
+                    {"error": "domain, org_email, key_id, public_key_jwk required"}, status=400
                 )
             
             # Basic JWK validation (shape only)
             try:
                 jwk = json.loads(public_key_jwk)
                 if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256" or not jwk.get("x") or not jwk.get("y"):
-                    return json_response({"error": "public_key_jwk must be EC P-256 JWK"}, 400)
+                    return Response.json({"error": "public_key_jwk must be EC P-256 JWK"}, status=400)
             except:
-                return json_response({"error": "public_key_jwk must be valid JSON"}, 400)
+                return Response.json({"error": "public_key_jwk must be valid JSON"}, status=400)
             
             await upsert_domain(env, {
                 "domain": domain,
@@ -127,7 +127,7 @@ class Default(WorkerEntrypoint):
                 await send_email(env, org_email, subject, body)
                 email_sent = True
             
-            return json_response({"ok": True, "domain": domain, "email_sent": email_sent})
+            return Response.json({"ok": True, "domain": domain, "email_sent": email_sent})
         
         # Domain key fetch
         if request.method == "GET" and url.pathname == "/api/domain":
@@ -135,13 +135,13 @@ class Default(WorkerEntrypoint):
             d = normalize_domain(query_params.get("domain", [""])[0])
             
             if not d:
-                return json_response({"error": "domain required"}, 400)
+                return Response.json({"error": "domain required"}, status=400)
             
             row = await get_domain(env, d)
             if not row or not row["is_active"]:
-                return json_response({"error": "domain not registered"}, 404)
+                return Response.json({"error": "domain not registered"}, status=404)
             
-            return json_response({
+            return Response.json({
                 "domain": row["domain"],
                 "org_email": row["org_email"],
                 "alg": row["alg"],
@@ -159,12 +159,12 @@ class Default(WorkerEntrypoint):
             max_per_min = int(getattr(env, "RATE_LIMIT_PER_MINUTE", "5"))
             
             if count > max_per_min:
-                return json_response({"error": "rate limit exceeded"}, 429)
+                return Response.json({"error": "rate limit exceeded"}, status=429)
             
             try:
                 payload = await request.json()
             except:
-                return json_response({"error": "invalid json"}, 400)
+                return Response.json({"error": "invalid json"}, status=400)
             
             domain = normalize_domain(payload.get("domain", ""))
             username = payload.get("username")
@@ -173,35 +173,35 @@ class Default(WorkerEntrypoint):
             encrypted_package = payload.get("encrypted_package")
             
             if not domain or not encrypted_package:
-                return json_response({"error": "domain and encrypted_package required"}, 400)
+                return Response.json({"error": "domain and encrypted_package required"}, status=400)
             
             if ts_enabled and not turnstile_token:
-                return json_response({"error": "turnstile_token required"}, 400)
+                return Response.json({"error": "turnstile_token required"}, status=400)
             
             ok = await verify_turnstile(env, turnstile_token, ip)
             if not ok:
-                return json_response({"error": "turnstile failed"}, 403)
+                return Response.json({"error": "turnstile failed"}, status=403)
             
             row = await get_domain(env, domain)
             if not row or not row["is_active"]:
-                return json_response({"error": "domain not registered"}, 404)
+                return Response.json({"error": "domain not registered"}, status=404)
             
             # Validate encrypted package shape only
             if encrypted_package.get("domain") != domain:
-                return json_response({"error": "domain mismatch"}, 400)
+                return Response.json({"error": "domain mismatch"}, status=400)
             
             if (not encrypted_package.get("ciphertext_b64") or
                 not encrypted_package.get("iv_b64") or
                 not encrypted_package.get("salt_b64") or
                 not encrypted_package.get("eph_pub_jwk")):
-                return json_response({"error": "invalid encrypted package"}, 400)
+                return Response.json({"error": "invalid encrypted package"}, status=400)
             
             pkg_json = json.dumps(encrypted_package)
             pkg_bytes = pkg_json.encode('utf-8')
             max_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", "3145728"))
             
             if len(pkg_bytes) > max_bytes:
-                return json_response({"error": "encrypted package too large"}, 413)
+                return Response.json({"error": "encrypted package too large"}, status=413)
             
             artifact_hash = await sha256_hex(pkg_bytes)
             
@@ -243,7 +243,7 @@ class Default(WorkerEntrypoint):
             if username:
                 ctx.waitUntil(sync_points(env, username, domain))
             
-            return json_response({
+            return Response.json({
                 "ok": True,
                 "submission_id": submission_id,
                 "artifact_hash": artifact_hash

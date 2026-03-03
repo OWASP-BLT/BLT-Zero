@@ -1,5 +1,6 @@
 import html
 import re
+from pathlib import Path
 
 
 def esc(s: str) -> str:
@@ -29,11 +30,36 @@ def replace_template(template: str, replacements: dict) -> str:
     return result
 
 
+def read_html_file(filename: str) -> str:
+    """Read HTML file from pages directory."""
+    import os
+    
+    # Get the directory where this file is located
+    current_dir = Path(__file__).parent
+    
+    # Try multiple possible paths relative to various locations
+    paths = [
+        current_dir.parent / "pages" / filename,  # From services dir, go up to src then to pages
+        current_dir.parent.parent / "src" / "pages" / filename,  # From project root
+        Path("pages") / filename,  # Direct path
+        Path("src/pages") / filename,  # From project root
+    ]
+    
+    for path in paths:
+        try:
+            if path.exists():
+                return path.read_text()
+        except Exception:
+            continue
+    
+    # If all paths fail, raise error with helpful message
+    raise FileNotFoundError(f"Could not find {filename} in any of: {paths}")
+
+
 def layout(title: str, body: str, include_turnstile_script: bool) -> str:
     """Wrap content in the main layout template."""
     # Read layout HTML
-    with open("src/pages/layout.html", "r") as f:
-        layout_html = f.read()
+    layout_html = read_html_file("layout.html")
     
     turnstile_script = (
         '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>'
@@ -63,8 +89,7 @@ def submit_page(opts: dict) -> str:
     )
     
     # Read submit page HTML
-    with open("src/pages/submit.html", "r") as f:
-        submit_html = f.read()
+    submit_html = read_html_file("submit.html")
     
     body = replace_template(submit_html, {
         "MAX_FILES": str(max_files),
@@ -80,16 +105,14 @@ def submit_page(opts: dict) -> str:
 
 def docs_security() -> str:
     """Generate the security documentation page."""
-    with open("src/pages/docs-security.html", "r") as f:
-        docs_security_html = f.read()
+    docs_security_html = read_html_file("docs-security.html")
     
     return layout("BLT-Zero — Security Model", docs_security_html, False)
 
 
 def docs_org_onboarding(app_origin: str) -> str:
     """Generate the organization onboarding documentation page."""
-    with open("src/pages/docs-org-onboarding.html", "r") as f:
-        docs_org_onboarding_html = f.read()
+    docs_org_onboarding_html = read_html_file("docs-org-onboarding.html")
     
     body = replace_template(docs_org_onboarding_html, {
         "APP_ORIGIN": esc(app_origin)
@@ -100,8 +123,7 @@ def docs_org_onboarding(app_origin: str) -> str:
 
 def docs_decrypt() -> str:
     """Generate the decryption guide page."""
-    with open("src/pages/docs-decrypt.html", "r") as f:
-        docs_decrypt_html = f.read()
+    docs_decrypt_html = read_html_file("docs-decrypt.html")
     
     return layout("BLT-Zero — Decrypt Guide", docs_decrypt_html, False)
 
@@ -118,8 +140,7 @@ def admin_onboard_page(turnstile_site_key: str = None) -> str:
     
     turnstile_status = "+ Turnstile" if ts_enabled else "(Turnstile disabled)"
     
-    with open("src/pages/admin-onboard.html", "r") as f:
-        admin_onboard_html = f.read()
+    admin_onboard_html = read_html_file("admin-onboard.html")
     
     body = replace_template(admin_onboard_html, {
         "TURNSTILE_WIDGET": turnstile_widget,
