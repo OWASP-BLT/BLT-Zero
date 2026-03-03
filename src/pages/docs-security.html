@@ -8,13 +8,13 @@
     </div>
 
     <!-- Main Content Card -->
-    <div class="rounded-lg border bg-card p-8 space-y-6">
+    <div class="rounded-lg border bg-white dark:bg-dark-surface p-8 space-y-6">
       
       <!-- Guarantee -->
       <div>
         <h2 class="text-xl font-semibold mb-3">Zero-Knowledge Guarantee</h2>
-        <p class="text-muted-foreground leading-relaxed">
-          <strong class="text-foreground">Worker never receives plaintext vulnerability details.</strong> 
+        <p class="text-gray-600 dark:text-gray-400 leading-relaxed">
+          <strong class="text-gray-900 dark:text-gray-50">Worker never receives plaintext vulnerability details.</strong> 
           All sensitive data is encrypted client-side before transmission.
         </p>
       </div>
@@ -22,7 +22,7 @@
       <!-- How it works -->
       <div>
         <h3 class="text-lg font-semibold mb-3">How It Works</h3>
-        <ul class="space-y-3 text-muted-foreground">
+        <ul class="space-y-3 text-gray-600 dark:text-gray-400">
           <li class="flex gap-3">
             <span class="text-primary mt-1">•</span>
             <span>Reporter browser encrypts using org public key (P-256 ECDH + HKDF + AES-GCM).</span>
@@ -43,21 +43,21 @@
       </div>
 
       <!-- Encryption Details -->
-      <div class="rounded-lg bg-secondary p-6">
+      <div class="rounded-lg bg-gray-100 dark:bg-gray-800 p-6">
         <h3 class="text-lg font-semibold mb-3">Encryption Algorithm</h3>
-        <div class="font-mono text-sm space-y-2 text-muted-foreground">
-          <p>• Key Exchange: <span class="text-foreground">ECDH P-256</span></p>
-          <p>• Key Derivation: <span class="text-foreground">HKDF-SHA256</span></p>
-          <p>• Encryption: <span class="text-foreground">AES-256-GCM</span></p>
-          <p>• Salt: <span class="text-foreground">16 bytes random</span></p>
-          <p>• IV: <span class="text-foreground">12 bytes random</span></p>
+        <div class="font-mono text-sm space-y-2 text-gray-600 dark:text-gray-400">
+          <p>• Key Exchange: <span class="text-gray-900 dark:text-gray-50">ECDH P-256</span></p>
+          <p>• Key Derivation: <span class="text-gray-900 dark:text-gray-50">HKDF-SHA256</span></p>
+          <p>• Encryption: <span class="text-gray-900 dark:text-gray-50">AES-256-GCM</span></p>
+          <p>• Salt: <span class="text-gray-900 dark:text-gray-50">16 bytes random</span></p>
+          <p>• IV: <span class="text-gray-900 dark:text-gray-50">12 bytes random</span></p>
         </div>
       </div>
 
       <!-- What's Stored -->
       <div>
         <h3 class="text-lg font-semibold mb-3">What's Stored in Database</h3>
-        <ul class="space-y-2 text-muted-foreground">
+        <ul class="space-y-2 text-gray-600 dark:text-gray-400">
           <li class="flex gap-3">
             <span class="text-primary mt-1">✓</span>
             <span>Domain name</span>
@@ -89,11 +89,11 @@
 
     <!-- Related Links -->
     <div class="mt-8 flex flex-wrap gap-4 justify-center">
-      <a href="/docs/org-onboarding" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background hover:bg-accent transition-colors text-sm font-medium">
+      <a href="/docs/org-onboarding" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base hover:bg-gray-100 dark:bg-gray-800 transition-colors text-sm font-medium">
         Org Onboarding Guide
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </a>
-      <a href="/docs/decrypt" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-background hover:bg-accent transition-colors text-sm font-medium">
+      <a href="/docs/decrypt" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base hover:bg-gray-100 dark:bg-gray-800 transition-colors text-sm font-medium">
         Decrypt Guide
         <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
       </a>

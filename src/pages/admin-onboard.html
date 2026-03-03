@@ -11,7 +11,7 @@
         Admin Only
       </div>
       <h1 class="text-balance text-4xl font-bold tracking-tight">Organization Admin Onboarding</h1>
-      <p class="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground">
+      <p class="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-gray-600 dark:text-gray-400">
         Register or update your organization's domain with BLT-Zero
       </p>
     </div>
@@ -23,8 +23,8 @@
           <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
         </svg>
         <div>
-          <p class="font-semibold text-foreground mb-2">Protected Page</p>
-          <p class="text-sm text-muted-foreground">
+          <p class="font-semibold text-gray-900 dark:text-gray-50 mb-2">Protected Page</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
             This page allows you to insert or update a domain entry in the database and send an onboarding email. 
             Protected by ADMIN_TOKEN {{TURNSTILE_STATUS}}.
           </p>
@@ -33,7 +33,7 @@
     </div>
 
     <!-- Onboarding Form -->
-    <div class="rounded-lg border bg-card p-8">
+    <div class="rounded-lg border bg-white dark:bg-dark-surface p-8">
       <form id="a">
         <div class="space-y-5">
           
@@ -45,7 +45,7 @@
               type="password"
               placeholder="paste ADMIN_TOKEN" 
               required
-              class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary font-mono"
             />
           </div>
 
@@ -57,7 +57,7 @@
                 id="domain" 
                 placeholder="example.com" 
                 required
-                class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -67,7 +67,7 @@
                 type="email"
                 placeholder="security@example.com" 
                 required
-                class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -80,10 +80,10 @@
               rows="8" 
               placeholder='{"kty":"EC","crv":"P-256","x":"...","y":"..."}'
               required
-              class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
             ></textarea>
-            <p class="text-xs text-muted-foreground mt-2">
-              Generate using <code class="px-1 py-0.5 rounded bg-secondary">python tools/org_keygen.py</code>
+            <p class="text-xs text-gray-600 dark:text-gray-400 mt-2">
+              Generate using <code class="px-1 py-0.5 rounded bg-gray-100 dark:bg-gray-800">python tools/org_keygen.py</code>
             </p>
           </div>
 
@@ -94,7 +94,7 @@
               id="keyid" 
               placeholder="hex string (from keygen output)" 
               required
-              class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono"
+              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary font-mono"
             />
           </div>
 
@@ -104,7 +104,7 @@
               type="checkbox" 
               id="sendmail" 
               checked
-              class="h-4 w-4 rounded border-border bg-background text-primary focus:ring-2 focus:ring-primary"
+              class="h-4 w-4 rounded border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-primary focus:ring-2 focus:ring-primary"
             />
             <label for="sendmail" class="text-sm font-medium cursor-pointer">
               Send onboarding email to organization inbox
@@ -123,16 +123,16 @@
           </button>
 
           <!-- Status Message -->
-          <p class="text-sm text-muted-foreground" id="out"></p>
+          <p class="text-sm text-gray-600 dark:text-gray-400" id="out"></p>
 
         </div>
       </form>
     </div>
 
     <!-- Help Card -->
-    <div class="mt-8 rounded-lg border bg-card p-6">
+    <div class="mt-8 rounded-lg border bg-white dark:bg-dark-surface p-6">
       <h3 class="text-lg font-semibold mb-4">Need Help?</h3>
-      <div class="space-y-2 text-sm text-muted-foreground">
+      <div class="space-y-2 text-sm text-gray-600 dark:text-gray-400">
         <p>• First time onboarding? Check the <a href="/docs/org-onboarding" class="text-primary hover:underline">Organization Onboarding Guide</a></p>
         <p>• Learn about our <a href="/docs/security" class="text-primary hover:underline">Security Model</a></p>
         <p>• How to <a href="/docs/decrypt" class="text-primary hover:underline">Decrypt Reports</a></p>

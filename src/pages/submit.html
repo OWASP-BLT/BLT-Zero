@@ -3,7 +3,7 @@
     
     <!-- Hero Section -->
     <div class="text-center mb-12">
-      <div class="mb-6 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground">
+      <div class="mb-6 inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400">
         <span class="relative flex h-1.5 w-1.5">
           <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
           <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary"></span>
@@ -13,30 +13,30 @@
       <h1 class="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
         Submit Encrypted Report
       </h1>
-      <p class="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-muted-foreground">
+      <p class="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-gray-600 dark:text-gray-400">
         Your report is encrypted in your browser using the organization's public key. BLT-Zero receives ciphertext only.
       </p>
     </div>
 
     <!-- Security Info Card -->
-    <div class="rounded-lg border bg-card p-6 mb-8">
+    <div class="rounded-lg border bg-white dark:bg-dark-surface p-6 mb-8">
       <div class="flex flex-wrap gap-2 mb-4">
-        <span class="inline-block rounded-full border border-border px-3 py-1 text-xs font-medium">Zero-Trust</span>
-        <span class="inline-block rounded-full border border-border px-3 py-1 text-xs font-medium">No plaintext to server</span>
-        <span class="inline-block rounded-full border border-border px-3 py-1 text-xs font-medium">Org-only decryption</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Zero-Trust</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">No plaintext to server</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Org-only decryption</span>
       </div>
-      <p class="text-sm text-muted-foreground mb-3">
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
         Your report is encrypted <strong>in your browser</strong> using the organization's public key.
         BLT-Zero receives <strong>ciphertext only</strong>.
       </p>
-      <ul class="text-sm text-muted-foreground space-y-1">
+      <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
         <li>• Max screenshots: <strong>{{MAX_FILES}}</strong></li>
         <li>• Encrypted package cap: <strong>{{MAX_MB}} MB</strong></li>
       </ul>
     </div>
 
     <!-- Submit Form -->
-    <div class="rounded-lg border bg-card p-6">
+    <div class="rounded-lg border bg-white dark:bg-dark-surface p-6">
       <form id="f">
         <div class="space-y-4">
           <!-- Domain -->
@@ -47,7 +47,7 @@
               value="{{DOMAIN_PREFILL}}" 
               placeholder="example.com" 
               required
-              class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -58,7 +58,7 @@
               <input 
                 id="username" 
                 placeholder="your_blt_username"
-                class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
@@ -67,7 +67,7 @@
                 id="url" 
                 placeholder="https://example.com/path" 
                 required
-                class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
           </div>
@@ -79,7 +79,7 @@
               id="description" 
               rows="5" 
               required
-              class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
             ></textarea>
           </div>
 
@@ -89,7 +89,7 @@
             <textarea 
               id="markdown" 
               rows="7"
-              class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
             ></textarea>
           </div>
 
@@ -101,7 +101,7 @@
               id="shots" 
               accept="image/*" 
               multiple
-              class="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
 
@@ -121,21 +121,21 @@
           </button>
 
           <!-- Status -->
-          <p class="text-sm text-muted-foreground" id="status"></p>
+          <p class="text-sm text-gray-600 dark:text-gray-400" id="status"></p>
         </div>
       </form>
     </div>
 
     <!-- Links Card -->
-    <div class="rounded-lg border bg-card p-4 mt-8">
-      <div class="flex flex-wrap gap-4 text-sm text-muted-foreground">
-        <a href="/docs/security" class="hover:text-foreground transition-colors">Security model</a>
+    <div class="rounded-lg border bg-white dark:bg-dark-surface p-4 mt-8">
+      <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
+        <a href="/docs/security" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Security model</a>
         <span>•</span>
-        <a href="/docs/org-onboarding" class="hover:text-foreground transition-colors">Org onboarding</a>
+        <a href="/docs/org-onboarding" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Org onboarding</a>
         <span>•</span>
-        <a href="/docs/decrypt" class="hover:text-foreground transition-colors">Decrypt guide</a>
+        <a href="/docs/decrypt" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Decrypt guide</a>
         <span>•</span>
-        <a href="/admin/onboard" class="hover:text-foreground transition-colors">Org admin onboard</a>
+        <a href="/admin/onboard" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Org admin onboard</a>
       </div>
     </div>
 
@@ -277,7 +277,7 @@ document.getElementById("f").addEventListener("submit", async (e)=>{
     const out = await resp.json().catch(()=>({}));
     if(!resp.ok) throw new Error(out?.error || "Submit failed.");
 
-    status.innerHTML = "✅ Submitted. ID: <code class='px-2 py-1 rounded bg-secondary'>"+out.submission_id+"</code>";
+    status.innerHTML = "✅ Submitted. ID: <code class='px-2 py-1 rounded bg-gray-100 dark:bg-gray-800'>"+out.submission_id+"</code>";
   }catch(err){
     status.textContent = "❌ " + (err?.message || String(err));
   }finally{
