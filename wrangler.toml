@@ -1,10 +1,7 @@
 name = "blt-zero"
-main = "src/worker.py"
+main = "src/main.py"
 compatibility_date = "2026-02-28" # Use a current date
 compatibility_flags = ["python_workers"]
-
-[[python]]
-modules = ["src/worker.py", "src/db.py", "src/security.py", "src/templates.py"]
 
 [[rules]]
 type = "Text"
