@@ -155,7 +155,7 @@ def onboarding_email_body(app_origin: str, domain: str) -> str:
     """Generate the onboarding email body text."""
     return f"""Hello Security Team,
 
-You have been onboarded to BLT-Zero (zero.blt.owasp.org) for domain: {domain}
+You have been onboarded to BLT-Zero (zero.owaspblt.org) for domain: {domain}
 
 How it works:
 - Reporters encrypt in their browser using your public key.
