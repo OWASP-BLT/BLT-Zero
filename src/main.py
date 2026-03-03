@@ -35,6 +35,8 @@ class Default(WorkerEntrypoint):
         ts_enabled = turnstile_enabled(env)
         commit_sha = getattr(env, 'GIT_COMMIT_SHA', '')
         commit_date = getattr(env, 'GIT_COMMIT_DATE', '')
+        email_provider = getattr(env, 'EMAIL_PROVIDER', '')
+        sendgrid_key = getattr(env, 'SENDGRID_API_KEY', '')
         
         # UI - Home page
         if request.method == "GET" and url.pathname == "/":
@@ -50,23 +52,25 @@ class Default(WorkerEntrypoint):
                     "maxTotalBytes": int(getattr(env, "MAX_UPLOAD_BYTES", "3145728")),
                     "commitSha": commit_sha,
                     "commitDate": commit_date,
+                    "emailProvider": email_provider,
+                    "sendgridKey": sendgrid_key,
                 })
             )
         
         # Docs
         if request.method == "GET" and url.pathname == "/docs/security":
-            return html_response(docs_security(commit_sha, commit_date))
+            return html_response(docs_security(commit_sha, commit_date, email_provider, sendgrid_key))
         
         if request.method == "GET" and url.pathname == "/docs/org-onboarding":
-            return html_response(docs_org_onboarding(env.APP_ORIGIN, commit_sha, commit_date))
+            return html_response(docs_org_onboarding(env.APP_ORIGIN, commit_sha, commit_date, email_provider, sendgrid_key))
         
         if request.method == "GET" and url.pathname == "/docs/decrypt":
-            return html_response(docs_decrypt(commit_sha, commit_date))
+            return html_response(docs_decrypt(commit_sha, commit_date, email_provider, sendgrid_key))
         
         # Admin page
         if request.method == "GET" and url.pathname == "/admin/onboard":
             return html_response(
-                admin_onboard_page(env.TURNSTILE_SITE_KEY if ts_enabled else "", commit_sha, commit_date)
+                admin_onboard_page(env.TURNSTILE_SITE_KEY if ts_enabled else "", commit_sha, commit_date, email_provider, sendgrid_key)
             )
         
         # Admin onboard POST
