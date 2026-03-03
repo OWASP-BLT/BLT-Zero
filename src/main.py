@@ -33,6 +33,8 @@ class Default(WorkerEntrypoint):
         
         url = URL.new(request.url)
         ts_enabled = turnstile_enabled(env)
+        commit_sha = getattr(env, 'GIT_COMMIT_SHA', '')
+        commit_date = getattr(env, 'GIT_COMMIT_DATE', '')
         
         # UI - Home page
         if request.method == "GET" and url.pathname == "/":
@@ -46,23 +48,25 @@ class Default(WorkerEntrypoint):
                     "turnstileSiteKey": env.TURNSTILE_SITE_KEY if ts_enabled else "",
                     "maxFiles": 3,
                     "maxTotalBytes": int(getattr(env, "MAX_UPLOAD_BYTES", "3145728")),
+                    "commitSha": commit_sha,
+                    "commitDate": commit_date,
                 })
             )
         
         # Docs
         if request.method == "GET" and url.pathname == "/docs/security":
-            return html_response(docs_security())
+            return html_response(docs_security(commit_sha, commit_date))
         
         if request.method == "GET" and url.pathname == "/docs/org-onboarding":
-            return html_response(docs_org_onboarding(env.APP_ORIGIN))
+            return html_response(docs_org_onboarding(env.APP_ORIGIN, commit_sha, commit_date))
         
         if request.method == "GET" and url.pathname == "/docs/decrypt":
-            return html_response(docs_decrypt())
+            return html_response(docs_decrypt(commit_sha, commit_date))
         
         # Admin page
         if request.method == "GET" and url.pathname == "/admin/onboard":
             return html_response(
-                admin_onboard_page(env.TURNSTILE_SITE_KEY if ts_enabled else "")
+                admin_onboard_page(env.TURNSTILE_SITE_KEY if ts_enabled else "", commit_sha, commit_date)
             )
         
         # Admin onboard POST

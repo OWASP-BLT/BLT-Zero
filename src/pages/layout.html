@@ -82,10 +82,7 @@
   <footer class="border-t border-gray-200 dark:border-gray-700 px-6 py-8 mt-20">
     <div class="mx-auto flex max-w-5xl flex-col items-center justify-between gap-4 sm:flex-row">
       <p class="text-xs text-gray-600 dark:text-gray-400">Built for the OWASP community.</p>
-      <a href="https://github.com/OWASP-BLT/BLT-Zero" target="_blank" rel="noopener noreferrer"
-         class="text-xs text-gray-600 dark:text-gray-400 underline-offset-4 transition-colors hover:text-gray-900 dark:hover:text-gray-50 hover:underline">
-        github.com/OWASP-BLT/BLT-Zero
-      </a>
+      {{COMMIT_INFO}}
     </div>
   </footer>
 
@@ -119,6 +116,23 @@
       localStorage.setItem('theme', html.classList.contains('dark') ? 'dark' : 'light');
       updateIcons();
     });
+
+    // Relative time for footer commit info
+    (function () {
+      var el = document.getElementById('commit-time-ago');
+      if (!el) return;
+      var ts = el.dataset.ts;
+      if (!ts) return;
+      var diff = (Date.now() - new Date(ts).getTime()) / 1000;
+      var text;
+      function plural(n, unit) { return n + ' ' + unit + (n === 1 ? '' : 's') + ' ago'; }
+      if (diff < 60) text = 'just now';
+      else if (diff < 3600) text = plural(Math.floor(diff / 60), 'minute');
+      else if (diff < 86400) text = plural(Math.floor(diff / 3600), 'hour');
+      else if (diff < 604800) text = plural(Math.floor(diff / 86400), 'day');
+      else text = new Date(ts).toLocaleDateString();
+      el.textContent = text;
+    })();
   </script>
 
 </body>
