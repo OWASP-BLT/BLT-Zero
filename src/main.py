@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 from workers import WorkerEntrypoint, Response
 from js import URL, crypto as js_crypto
@@ -77,7 +77,7 @@ class Default(WorkerEntrypoint):
         # Admin onboard POST
         if request.method == "POST" and url.pathname == "/admin/onboard":
             ip = get_client_ip(request)
-            current_time = datetime.utcnow()
+            current_time = datetime.now(timezone.utc)
             bucket = minute_bucket_iso(current_time)
             limit_key = f"admin_onboard:{ip}:{bucket}"
             
