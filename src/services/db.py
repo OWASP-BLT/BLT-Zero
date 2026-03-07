@@ -83,19 +83,15 @@ async def track_admin_auth_failure(env, ip: str, timestamp: str):
     """Track a failed admin authentication attempt."""
     key = f"admin_fail:{ip}"
     
-    existing = await env.DB.prepare(
-        """SELECT count FROM rate_limits WHERE k = ? LIMIT 1"""
-    ).bind(key).all()
-    
-    if not existing.results:
-        await env.DB.prepare(
-            """INSERT INTO rate_limits (k, count, window_start) VALUES (?,?,?)"""
-        ).bind(key, 1, timestamp).run()
-    else:
-        count = existing.results[0]["count"] + 1
-        await env.DB.prepare(
-            """UPDATE rate_limits SET count = ?, window_start = ? WHERE k = ?"""
-        ).bind(count, timestamp, key).run()
+    await env.DB.prepare(
+        """
+        INSERT INTO rate_limits (k, count, window_start)
+        VALUES (?, 1, ?)
+        ON CONFLICT(k) DO UPDATE SET
+            count = rate_limits.count + 1,
+            window_start = excluded.window_start
+        """
+    ).bind(key, timestamp).run()
 
 
 async def get_admin_auth_failures(env, ip: str) -> tuple[int, Optional[str]]:

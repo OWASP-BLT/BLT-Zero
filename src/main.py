@@ -79,7 +79,7 @@ class Default(WorkerEntrypoint):
             ip = get_client_ip(request)
             current_time = datetime.utcnow()
             bucket = minute_bucket_iso(current_time)
-            limit_key = f"ip:{ip}:{bucket}"
+            limit_key = f"admin_onboard:{ip}:{bucket}"
             
             # Standard rate limiting (requests per minute)
             count = await rate_limit_hit(env, limit_key, bucket)

@@ -74,9 +74,10 @@ def calculate_backoff_seconds(failure_count: int) -> int:
         - 4 failures: 16 seconds
         - 5+ failures: 60 seconds (1 minute cap)
     """
-    if failure_count == 0:
+    if failure_count <= 0:
         return 0
     
-    # Exponential: 2^failure_count, capped at 60 seconds
-    backoff = min(2 ** failure_count, 60)
-    return backoff
+    if failure_count >= 5:
+        return 60
+    
+    return 2 ** failure_count
