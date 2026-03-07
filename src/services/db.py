@@ -77,3 +77,41 @@ async def rate_limit_hit(env, key: str, window_start: str) -> int:
     ).bind(count, key).run()
     
     return count
+
+
+async def track_admin_auth_failure(env, ip: str, timestamp: str):
+    """Track a failed admin authentication attempt."""
+    key = f"admin_fail:{ip}"
+    
+    await env.DB.prepare(
+        """
+        INSERT INTO rate_limits (k, count, window_start)
+        VALUES (?, 1, ?)
+        ON CONFLICT(k) DO UPDATE SET
+            count = rate_limits.count + 1,
+            window_start = excluded.window_start
+        """
+    ).bind(key, timestamp).run()
+
+
+async def get_admin_auth_failures(env, ip: str) -> tuple[int, Optional[str]]:
+    """Get count of admin auth failures and timestamp of last failure for an IP."""
+    key = f"admin_fail:{ip}"
+    
+    res = await env.DB.prepare(
+        """SELECT count, window_start FROM rate_limits WHERE k = ? LIMIT 1"""
+    ).bind(key).all()
+    
+    if not res.results:
+        return (0, None)
+    
+    return (res.results[0]["count"], res.results[0]["window_start"])
+
+
+async def clear_admin_auth_failures(env, ip: str):
+    """Clear admin auth failures for an IP (called on successful auth)."""
+    key = f"admin_fail:{ip}"
+    
+    await env.DB.prepare(
+        """DELETE FROM rate_limits WHERE k = ?"""
+    ).bind(key).run()

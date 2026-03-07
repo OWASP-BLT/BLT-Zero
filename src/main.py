@@ -1,11 +1,19 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse, parse_qs
 from workers import WorkerEntrypoint, Response
 from js import URL, crypto as js_crypto
 
 from libs.utils import html_response
-from services.db import get_domain, upsert_domain, insert_submission, rate_limit_hit
+from services.db import (
+    get_domain,
+    upsert_domain,
+    insert_submission,
+    rate_limit_hit,
+    track_admin_auth_failure,
+    get_admin_auth_failures,
+    clear_admin_auth_failures
+)
 from services.email import send_email, sync_points
 from services.security import (
     normalize_domain,
@@ -13,7 +21,8 @@ from services.security import (
     minute_bucket_iso,
     sha256_hex,
     verify_turnstile,
-    turnstile_enabled
+    turnstile_enabled,
+    calculate_backoff_seconds
 )
 from services.templates import (
     submit_page,
@@ -68,6 +77,32 @@ class Default(WorkerEntrypoint):
         # Admin onboard POST
         if request.method == "POST" and url.pathname == "/admin/onboard":
             ip = get_client_ip(request)
+            current_time = datetime.now(timezone.utc)
+            bucket = minute_bucket_iso(current_time)
+            limit_key = f"admin_onboard:{ip}:{bucket}"
+            
+            # Standard rate limiting (requests per minute)
+            count = await rate_limit_hit(env, limit_key, bucket)
+            max_per_min = int(getattr(env, "RATE_LIMIT_PER_MINUTE", "5"))
+            
+            if count > max_per_min:
+                return Response.json({"error": "rate limit exceeded"}, status=429)
+            
+            # Check for previous failed attempts and enforce exponential backoff
+            failure_count, last_failure_time = await get_admin_auth_failures(env, ip)
+            
+            # Enforce exponential backoff
+            if failure_count > 0 and last_failure_time:
+                backoff_seconds = calculate_backoff_seconds(failure_count)
+                last_failure_dt = datetime.fromisoformat(last_failure_time.replace('Z', '+00:00'))
+                time_since_last_failure = (current_time - last_failure_dt).total_seconds()
+                
+                if time_since_last_failure < backoff_seconds:
+                    retry_after = int(backoff_seconds - time_since_last_failure) + 1
+                    return Response.json({
+                        "error": f"too many failed attempts - retry after {retry_after} seconds",
+                        "retry_after": retry_after
+                    }, status=429, headers={"Retry-After": str(retry_after)})
             
             try:
                 payload = await request.json()
@@ -85,12 +120,21 @@ class Default(WorkerEntrypoint):
             # Admin auth
             admin_token = getattr(env, "ADMIN_TOKEN", None)
             if not admin_token or token != admin_token:
+                # Track failed attempt
+                timestamp = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                await track_admin_auth_failure(env, ip, timestamp)
                 return Response.json({"error": "unauthorized"}, status=401)
             
             # Turnstile verify (auto-pass if disabled)
             ok = await verify_turnstile(env, turnstile_token, ip)
             if not ok:
+                # Track failed attempt
+                timestamp = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                await track_admin_auth_failure(env, ip, timestamp)
                 return Response.json({"error": "turnstile failed"}, status=403)
+            
+            # Clear failed attempts on successful authentication
+            await clear_admin_auth_failures(env, ip)
             
             domain = normalize_domain(payload.get("domain", ""))
             org_email = str(payload.get("org_email", "")).strip()
