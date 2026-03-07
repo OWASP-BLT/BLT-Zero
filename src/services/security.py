@@ -61,3 +61,22 @@ async def verify_turnstile(env, token: str, ip: str) -> bool:
     
     json_data = await resp.json()
     return bool(json_data.get("success", False))
+
+
+def calculate_backoff_seconds(failure_count: int) -> int:
+    """Calculate exponential backoff time in seconds based on failure count.
+    
+    Returns:
+        - 0 failures: 0 seconds
+        - 1 failure: 2 seconds
+        - 2 failures: 4 seconds
+        - 3 failures: 8 seconds
+        - 4 failures: 16 seconds
+        - 5+ failures: 60 seconds (1 minute cap)
+    """
+    if failure_count == 0:
+        return 0
+    
+    # Exponential: 2^failure_count, capped at 60 seconds
+    backoff = min(2 ** failure_count, 60)
+    return backoff
