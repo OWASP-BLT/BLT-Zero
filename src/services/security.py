@@ -9,7 +9,14 @@ def normalize_domain(input: str) -> str:
 
 def get_client_ip(req) -> str:
     """Get client IP from CF-Connecting-IP header."""
-    return req.headers.get("CF-Connecting-IP", "0.0.0.0")
+    ip = req.headers.get("CF-Connecting-IP", "")
+    if ip:
+        return ip
+    # Fallback chain for non-CF environments
+    forwarded_for = req.headers.get("X-Forwarded-For", "").split(",")[0].strip()
+    if forwarded_for:
+        return forwarded_for
+    return "0.0.0.0"  # last-resort, clearly indicates unknown
 
 
 def minute_bucket_iso(date: datetime = None) -> str:

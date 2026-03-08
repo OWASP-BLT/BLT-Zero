@@ -152,7 +152,7 @@ class Default(WorkerEntrypoint):
                 jwk = json.loads(public_key_jwk)
                 if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256" or not jwk.get("x") or not jwk.get("y"):
                     return Response.json({"error": "public_key_jwk must be EC P-256 JWK"}, status=400)
-            except:
+            except Exception:
                 return Response.json({"error": "public_key_jwk must be valid JSON"}, status=400)
             
             await upsert_domain(env, {
@@ -196,18 +196,22 @@ class Default(WorkerEntrypoint):
         # Submit
         if request.method == "POST" and url.pathname == "/submit":
             ip = get_client_ip(request)
-            bucket = minute_bucket_iso(datetime.utcnow())
+            bucket = minute_bucket_iso(datetime.now(timezone.utc))
             limit_key = f"ip:{ip}:{bucket}"
             
             count = await rate_limit_hit(env, limit_key, bucket)
             max_per_min = int(getattr(env, "RATE_LIMIT_PER_MINUTE", "5"))
             
             if count > max_per_min:
-                return Response.json({"error": "rate limit exceeded"}, status=429)
+                return Response.json(
+                    {"error": "rate limit exceeded", "retry_after": 60},
+                    status=429,
+                    headers={"Retry-After": "60"}
+                )
             
             try:
                 payload = await request.json()
-            except:
+            except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
             
             domain = normalize_domain(payload.get("domain", ""))

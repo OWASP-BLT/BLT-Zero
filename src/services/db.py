@@ -79,9 +79,9 @@ async def rate_limit_hit(env, key: str, window_start: str) -> int:
     return count
 
 
-async def track_admin_auth_failure(env, ip: str, timestamp: str):
+async def track_admin_auth_failure(env, ip: str, timestamp: str, endpoint: str = "onboard"):
     """Track a failed admin authentication attempt."""
-    key = f"admin_fail:{ip}"
+    key = f"admin_fail:{endpoint}:{ip}"
     
     await env.DB.prepare(
         """
@@ -94,9 +94,9 @@ async def track_admin_auth_failure(env, ip: str, timestamp: str):
     ).bind(key, timestamp).run()
 
 
-async def get_admin_auth_failures(env, ip: str) -> tuple[int, Optional[str]]:
+async def get_admin_auth_failures(env, ip: str, endpoint: str = "onboard") -> tuple[int, Optional[str]]:
     """Get count of admin auth failures and timestamp of last failure for an IP."""
-    key = f"admin_fail:{ip}"
+    key = f"admin_fail:{endpoint}:{ip}"
     
     res = await env.DB.prepare(
         """SELECT count, window_start FROM rate_limits WHERE k = ? LIMIT 1"""
@@ -108,9 +108,9 @@ async def get_admin_auth_failures(env, ip: str) -> tuple[int, Optional[str]]:
     return (res.results[0]["count"], res.results[0]["window_start"])
 
 
-async def clear_admin_auth_failures(env, ip: str):
+async def clear_admin_auth_failures(env, ip: str, endpoint: str = "onboard"):
     """Clear admin auth failures for an IP (called on successful auth)."""
-    key = f"admin_fail:{ip}"
+    key = f"admin_fail:{endpoint}:{ip}"
     
     await env.DB.prepare(
         """DELETE FROM rate_limits WHERE k = ?"""
