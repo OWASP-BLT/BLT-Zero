@@ -86,7 +86,11 @@ class Default(WorkerEntrypoint):
             max_per_min = int(getattr(env, "RATE_LIMIT_PER_MINUTE", "5"))
             
             if count > max_per_min:
-                return Response.json({"error": "rate limit exceeded"}, status=429)
+                return Response.json(
+                    {"error": "rate limit exceeded", "retry_after": 60},
+                    status=429,
+                    headers={"Retry-After": "60"}
+                )
             
             # Check for previous failed attempts and enforce exponential backoff
             failure_count, last_failure_time = await get_admin_auth_failures(env, ip)
@@ -106,7 +110,7 @@ class Default(WorkerEntrypoint):
             
             try:
                 payload = await request.json()
-            except:
+            except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
             
             token = str(payload.get("admin_token", ""))
@@ -132,9 +136,6 @@ class Default(WorkerEntrypoint):
                 timestamp = current_time.strftime("%Y-%m-%dT%H:%M:%SZ")
                 await track_admin_auth_failure(env, ip, timestamp)
                 return Response.json({"error": "turnstile failed"}, status=403)
-            
-            # Clear failed attempts on successful authentication
-            await clear_admin_auth_failures(env, ip)
             
             domain = normalize_domain(payload.get("domain", ""))
             org_email = str(payload.get("org_email", "")).strip()
@@ -163,6 +164,9 @@ class Default(WorkerEntrypoint):
                 "public_key_jwk": public_key_jwk,
                 "is_active": 1,
             })
+            
+            # Clear failed attempts on successful onboarding
+            await clear_admin_auth_failures(env, ip)
             
             email_sent = False
             if send_onboarding_email:
