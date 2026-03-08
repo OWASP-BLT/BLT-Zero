@@ -1,12 +1,14 @@
+import io
 import json
+import zipfile
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from workers import WorkerEntrypoint, Response
-from js import URL, crypto as js_crypto
+from js import URL, crypto as js_crypto, JSON as jsJSON, Uint8Array as JsUint8Array
 
 from libs.utils import html_response
-from services.db import get_domain, upsert_domain, insert_submission, rate_limit_hit
-from services.email import send_email, sync_points
+from services.db import get_domain, insert_submission, rate_limit_hit
+from services.email import send_email
 from services.security import (
     normalize_domain,
     get_client_ip,
@@ -15,31 +17,62 @@ from services.security import (
     verify_turnstile,
     turnstile_enabled
 )
-from services.templates import (
-    submit_page,
-    docs_security,
-    docs_org_onboarding,
-    docs_decrypt,
-    admin_onboard_page,
-    onboarding_email_body
-)
+from services.templates import submit_page
+
+
+async def _aes_gcm_encrypt(plaintext_bytes: bytes):
+    """
+    Encrypt plaintext using AES-256-GCM via the Web Crypto API.
+    Returns (ciphertext_bytes, key_hex, iv_hex).
+    """
+    # Generate random 12-byte IV
+    iv_arr = js_crypto.getRandomValues(JsUint8Array.new(12))
+
+    # Build algorithm objects via JSON.parse so they arrive as native JS objects
+    key_alg = jsJSON.parse('{"name":"AES-GCM","length":256}')
+    key_usages = jsJSON.parse('["encrypt"]')
+
+    aes_key = await js_crypto.subtle.generateKey(key_alg, True, key_usages)
+
+    # Copy plaintext into a JS Uint8Array
+    data_arr = JsUint8Array.new(len(plaintext_bytes))
+    for i, b in enumerate(plaintext_bytes):
+        data_arr[i] = b
+
+    # Encrypt
+    enc_params = jsJSON.parse('{"name":"AES-GCM"}')
+    enc_params.iv = iv_arr
+    ct_buffer = await js_crypto.subtle.encrypt(enc_params, aes_key, data_arr)
+    ct_bytes = bytes(JsUint8Array.new(ct_buffer))
+
+    # Export the raw key bytes
+    key_raw_buffer = await js_crypto.subtle.exportKey("raw", aes_key)
+    key_bytes = bytes(JsUint8Array.new(key_raw_buffer))
+
+    return ct_bytes, key_bytes.hex(), bytes(iv_arr).hex()
+
+
+def _build_zip(filename: str, data: bytes) -> bytes:
+    """Return in-memory zip bytes containing a single file."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(filename, data)
+    return buf.getvalue()
 
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         """Main fetch handler for the worker."""
         env = self.env
-        ctx = self.ctx
-        
+
         url = URL.new(request.url)
         ts_enabled = turnstile_enabled(env)
-        
-        # UI - Home page
+
+        # UI - Home page (submit form)
         if request.method == "GET" and url.pathname == "/":
-            # Parse query parameters
             query_params = parse_qs(urlparse(request.url).query)
             domain_prefill = query_params.get("domain", [""])[0]
-            
+
             return html_response(
                 submit_page({
                     "domainPrefill": domain_prefill,
@@ -48,189 +81,124 @@ class Default(WorkerEntrypoint):
                     "maxTotalBytes": int(getattr(env, "MAX_UPLOAD_BYTES", "3145728")),
                 })
             )
-        
-        # Docs
-        if request.method == "GET" and url.pathname == "/docs/security":
-            return html_response(docs_security())
-        
-        if request.method == "GET" and url.pathname == "/docs/org-onboarding":
-            return html_response(docs_org_onboarding(env.APP_ORIGIN))
-        
-        if request.method == "GET" and url.pathname == "/docs/decrypt":
-            return html_response(docs_decrypt())
-        
-        # Admin page
-        if request.method == "GET" and url.pathname == "/admin/onboard":
-            return html_response(
-                admin_onboard_page(env.TURNSTILE_SITE_KEY if ts_enabled else "")
-            )
-        
-        # Admin onboard POST
-        if request.method == "POST" and url.pathname == "/admin/onboard":
-            ip = get_client_ip(request)
-            
-            try:
-                payload = await request.json()
-            except:
-                return Response.json({"error": "invalid json"}, status=400)
-            
-            token = str(payload.get("admin_token", ""))
-            turnstile_token = str(payload.get("turnstile_token", ""))
-            
-            if not token:
-                return Response.json({"error": "admin_token required"}, status=400)
-            if ts_enabled and not turnstile_token:
-                return Response.json({"error": "turnstile_token required"}, status=400)
-            
-            # Admin auth
-            admin_token = getattr(env, "ADMIN_TOKEN", None)
-            if not admin_token or token != admin_token:
-                return Response.json({"error": "unauthorized"}, status=401)
-            
-            # Turnstile verify (auto-pass if disabled)
-            ok = await verify_turnstile(env, turnstile_token, ip)
-            if not ok:
-                return Response.json({"error": "turnstile failed"}, status=403)
-            
-            domain = normalize_domain(payload.get("domain", ""))
-            org_email = str(payload.get("org_email", "")).strip()
-            key_id = str(payload.get("key_id", "")).strip()
-            public_key_jwk = str(payload.get("public_key_jwk", "")).strip()
-            send_onboarding_email = bool(payload.get("send_onboarding_email", False))
-            
-            if not domain or not org_email or not key_id or not public_key_jwk:
-                return Response.json(
-                    {"error": "domain, org_email, key_id, public_key_jwk required"}, status=400
-                )
-            
-            # Basic JWK validation (shape only)
-            try:
-                jwk = json.loads(public_key_jwk)
-                if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256" or not jwk.get("x") or not jwk.get("y"):
-                    return Response.json({"error": "public_key_jwk must be EC P-256 JWK"}, status=400)
-            except:
-                return Response.json({"error": "public_key_jwk must be valid JSON"}, status=400)
-            
-            await upsert_domain(env, {
-                "domain": domain,
-                "org_email": org_email,
-                "alg": "ECDH_P256_HKDF_SHA256_AESGCM",
-                "key_id": key_id,
-                "public_key_jwk": public_key_jwk,
-                "is_active": 1,
-            })
-            
-            email_sent = False
-            if send_onboarding_email:
-                subject = f"BLT-Zero Onboarding — {domain}"
-                body = onboarding_email_body(env.APP_ORIGIN, domain)
-                await send_email(env, org_email, subject, body)
-                email_sent = True
-            
-            return Response.json({"ok": True, "domain": domain, "email_sent": email_sent})
-        
-        # Domain key fetch
-        if request.method == "GET" and url.pathname == "/api/domain":
-            query_params = parse_qs(urlparse(request.url).query)
-            d = normalize_domain(query_params.get("domain", [""])[0])
-            
-            if not d:
-                return Response.json({"error": "domain required"}, status=400)
-            
-            row = await get_domain(env, d)
-            if not row or not row["is_active"]:
-                return Response.json({"error": "domain not registered"}, status=404)
-            
-            return Response.json({
-                "domain": row["domain"],
-                "org_email": row["org_email"],
-                "alg": row["alg"],
-                "key_id": row["key_id"],
-                "public_key_jwk": row["public_key_jwk"],
-            })
-        
-        # Submit
+
+        # Submit encrypted report
         if request.method == "POST" and url.pathname == "/submit":
             ip = get_client_ip(request)
             bucket = minute_bucket_iso(datetime.utcnow())
             limit_key = f"ip:{ip}:{bucket}"
-            
+
             count = await rate_limit_hit(env, limit_key, bucket)
             max_per_min = int(getattr(env, "RATE_LIMIT_PER_MINUTE", "5"))
-            
+
             if count > max_per_min:
                 return Response.json({"error": "rate limit exceeded"}, status=429)
-            
+
             try:
                 payload = await request.json()
-            except:
+            except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
-            
+
             domain = normalize_domain(payload.get("domain", ""))
             username = payload.get("username")
             username = str(username).strip() if username else None
             turnstile_token = str(payload.get("turnstile_token", ""))
-            encrypted_package = payload.get("encrypted_package")
-            
-            if not domain or not encrypted_package:
-                return Response.json({"error": "domain and encrypted_package required"}, status=400)
-            
+
+            # Plaintext report fields
+            report_url = str(payload.get("url", "")).strip()
+            description = str(payload.get("description", "")).strip()
+            markdown = payload.get("markdown")
+            markdown = str(markdown).strip() if markdown else None
+            screenshots_b64 = payload.get("screenshots_b64") or []
+
+            if not domain or not report_url or not description:
+                return Response.json(
+                    {"error": "domain, url, and description are required"},
+                    status=400
+                )
+
             if ts_enabled and not turnstile_token:
                 return Response.json({"error": "turnstile_token required"}, status=400)
-            
+
             ok = await verify_turnstile(env, turnstile_token, ip)
             if not ok:
                 return Response.json({"error": "turnstile failed"}, status=403)
-            
+
             row = await get_domain(env, domain)
             if not row or not row["is_active"]:
                 return Response.json({"error": "domain not registered"}, status=404)
-            
-            # Validate encrypted package shape only
-            if encrypted_package.get("domain") != domain:
-                return Response.json({"error": "domain mismatch"}, status=400)
-            
-            if (not encrypted_package.get("ciphertext_b64") or
-                not encrypted_package.get("iv_b64") or
-                not encrypted_package.get("salt_b64") or
-                not encrypted_package.get("eph_pub_jwk")):
-                return Response.json({"error": "invalid encrypted package"}, status=400)
-            
-            pkg_json = json.dumps(encrypted_package)
-            pkg_bytes = pkg_json.encode('utf-8')
+
+            # Validate payload size
+            raw_size = len(json.dumps(payload).encode("utf-8"))
             max_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", "3145728"))
-            
-            if len(pkg_bytes) > max_bytes:
-                return Response.json({"error": "encrypted package too large"}, status=413)
-            
-            artifact_hash = await sha256_hex(pkg_bytes)
-            
-            # Generate submission ID using crypto.randomUUID()
+            if raw_size > max_bytes:
+                return Response.json({"error": "payload too large"}, status=413)
+
             submission_id = str(js_crypto.randomUUID())
-            
-            # Email ciphertext package to org
-            subject = f"BLT-Zero Encrypted Report — {domain} — {submission_id}"
+            created_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S.000Z")
+
+            # Build the plaintext report object
+            report = {
+                "v": 1,
+                "submission_id": submission_id,
+                "domain": domain,
+                "url": report_url,
+                "username": username,
+                "description": description,
+                "markdown": markdown,
+                "screenshots_b64": screenshots_b64,
+                "created_at": created_at,
+            }
+            report_json_bytes = json.dumps(report).encode("utf-8")
+
+            # Encrypt the report with AES-256-GCM
+            ct_bytes, key_hex, iv_hex = await _aes_gcm_encrypt(report_json_bytes)
+
+            # Compute hash of ciphertext for integrity reference
+            artifact_hash = await sha256_hex(ct_bytes)
+
+            # Pack the encrypted report into a zip
+            inner_filename = f"report-{submission_id}.bin"
+            zip_bytes = _build_zip(inner_filename, ct_bytes)
+
+            # Email the zip with the decryption key in the body
+            subject = f"BLT-Zero Vulnerability Report — {domain} — {submission_id}"
+            sep = "=" * 60
             body_lines = [
-                f"Encrypted vulnerability report for: {domain}",
-                f"Submission ID: {submission_id}",
-                f"Ciphertext SHA-256: {artifact_hash}",
-                "",
-                f"Decrypt guide: {env.APP_ORIGIN}/docs/decrypt",
-                f"Security model: {env.APP_ORIGIN}/docs/security",
-                "",
-                "BLT-Zero cannot decrypt this report.",
+                f"A new vulnerability report has been submitted for: {domain}",
+                f"",
+                f"Submission ID      : {submission_id}",
+                f"Created            : {created_at}",
+                f"Ciphertext SHA-256 : {artifact_hash}",
+                f"",
+                sep,
+                "ZIP FILE DECRYPTION KEY",
+                sep,
+                f"Key (AES-256-GCM) : {key_hex}",
+                f"IV                : {iv_hex}",
+                f"Algorithm         : AES-256-GCM",
+                f"",
+                f"The attached ZIP contains '{inner_filename}'.",
+                f"Decrypt with the key above to obtain the plaintext report (JSON).",
+                f"",
+                f"Quick decrypt (Python):",
+                f"  pip install cryptography",
+                f"  python decrypt_report.py {key_hex} {iv_hex} {inner_filename}",
+                f"",
+                f"— BLT-Zero / OWASP BLT",
             ]
             body = "\n".join(body_lines)
-            
+
+            zip_filename = f"blt-zero-{domain}-{submission_id}.zip"
             await send_email(
                 env,
                 row["org_email"],
                 subject,
                 body,
-                f"blt-zero-{domain}-{artifact_hash}.json",
-                pkg_json
+                zip_filename,
+                zip_bytes,
             )
-            
+
             # Store minimal metadata
             await insert_submission(env, {
                 "id": submission_id,
@@ -238,16 +206,12 @@ class Default(WorkerEntrypoint):
                 "username": username,
                 "artifact_hash": artifact_hash,
             })
-            
-            # Points sync async
-            if username:
-                ctx.waitUntil(sync_points(env, username, domain))
-            
+
             return Response.json({
                 "ok": True,
                 "submission_id": submission_id,
-                "artifact_hash": artifact_hash
+                "artifact_hash": artifact_hash,
             })
-        
+
         # 404
         return Response("Not found", status=404)

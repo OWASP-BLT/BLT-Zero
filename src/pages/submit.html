@@ -1,6 +1,6 @@
 <section class="px-6 py-12">
   <div class="mx-auto max-w-5xl">
-    
+
     <!-- Hero Section -->
     <div class="text-center mb-12">
       <div class="mb-6 inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -8,30 +8,31 @@
           <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
           <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary"></span>
         </span>
-        Zero-Trust Security
+        Encrypted Reporting
       </div>
       <h1 class="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-        Submit Encrypted Report
+        Submit Vulnerability Report
       </h1>
       <p class="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-gray-600 dark:text-gray-400">
-        Your report is encrypted in your browser using the organization's public key. BLT-Zero receives ciphertext only.
+        Your report is encrypted server-side with AES-256-GCM. The decryption key is included in the email sent to the organisation.
       </p>
     </div>
 
     <!-- Security Info Card -->
     <div class="rounded-lg border bg-white dark:bg-dark-surface p-6 mb-8">
       <div class="flex flex-wrap gap-2 mb-4">
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Zero-Trust</span>
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">No plaintext to server</span>
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Org-only decryption</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">AES-256-GCM Encrypted</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Key sent with report</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">ZIP attachment</span>
       </div>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-        Your report is encrypted <strong>in your browser</strong> using the organization's public key.
-        BLT-Zero receives <strong>ciphertext only</strong>.
+        Your report is encrypted <strong>server-side</strong> with AES-256-GCM and delivered to the organisation as an
+        encrypted ZIP attachment. The decryption key is included in the same email so the organisation can open it
+        without any additional tooling.
       </p>
       <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
         <li>• Max screenshots: <strong>{{MAX_FILES}}</strong></li>
-        <li>• Encrypted package cap: <strong>{{MAX_MB}} MB</strong></li>
+        <li>• Payload cap: <strong>{{MAX_MB}} MB</strong></li>
       </ul>
     </div>
 
@@ -39,13 +40,14 @@
     <div class="rounded-lg border bg-white dark:bg-dark-surface p-6">
       <form id="f">
         <div class="space-y-4">
+
           <!-- Domain -->
           <div>
             <label class="block text-sm font-medium mb-2">Target Domain</label>
-            <input 
-              id="domain" 
-              value="{{DOMAIN_PREFILL}}" 
-              placeholder="example.com" 
+            <input
+              id="domain"
+              value="{{DOMAIN_PREFILL}}"
+              placeholder="example.com"
               required
               class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -54,18 +56,18 @@
           <!-- Username and URL -->
           <div class="grid gap-4 md:grid-cols-2">
             <div>
-              <label class="block text-sm font-medium mb-2">Your BLT Username (optional, for points)</label>
-              <input 
-                id="username" 
+              <label class="block text-sm font-medium mb-2">Your BLT Username (optional)</label>
+              <input
+                id="username"
                 placeholder="your_blt_username"
                 class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
               <label class="block text-sm font-medium mb-2">Target URL</label>
-              <input 
-                id="url" 
-                placeholder="https://example.com/path" 
+              <input
+                id="url"
+                placeholder="https://example.com/path"
                 required
                 class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
               />
@@ -75,9 +77,9 @@
           <!-- Description -->
           <div>
             <label class="block text-sm font-medium mb-2">Vulnerability Description</label>
-            <textarea 
-              id="description" 
-              rows="5" 
+            <textarea
+              id="description"
+              rows="5"
               required
               class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
             ></textarea>
@@ -86,8 +88,8 @@
           <!-- Markdown -->
           <div>
             <label class="block text-sm font-medium mb-2">Detailed Report (Markdown, optional)</label>
-            <textarea 
-              id="markdown" 
+            <textarea
+              id="markdown"
               rows="7"
               class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
             ></textarea>
@@ -96,10 +98,10 @@
           <!-- Screenshots -->
           <div>
             <label class="block text-sm font-medium mb-2">Screenshots (optional, up to {{MAX_FILES}})</label>
-            <input 
-              type="file" 
-              id="shots" 
-              accept="image/*" 
+            <input
+              type="file"
+              id="shots"
+              accept="image/*"
               multiple
               class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
             />
@@ -108,35 +110,19 @@
           <!-- Turnstile -->
           {{TURNSTILE_WIDGET}}
 
-          <!-- Limit Message -->
-          <p class="text-sm text-yellow-500" id="limitMsg"></p>
-
           <!-- Submit Button -->
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             id="btn"
             class="w-full px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors"
           >
-            Encrypt & Submit
+            Submit Report
           </button>
 
           <!-- Status -->
           <p class="text-sm text-gray-600 dark:text-gray-400" id="status"></p>
         </div>
       </form>
-    </div>
-
-    <!-- Links Card -->
-    <div class="rounded-lg border bg-white dark:bg-dark-surface p-4 mt-8">
-      <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-        <a href="/docs/security" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Security model</a>
-        <span>•</span>
-        <a href="/docs/org-onboarding" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Org onboarding</a>
-        <span>•</span>
-        <a href="/docs/decrypt" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Decrypt guide</a>
-        <span>•</span>
-        <a href="/admin/onboard" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Org admin onboard</a>
-      </div>
     </div>
 
   </div>
@@ -148,67 +134,46 @@ const MAX_FILES = {{MAX_FILES}};
 const MAX_TOTAL = {{MAX_TOTAL_BYTES}};
 const TURNSTILE_ENABLED = {{TURNSTILE_ENABLED}};
 
-function b64(u8){
-  let s=""; const chunk=0x8000;
-  for(let i=0;i<u8.length;i+=chunk){ s += String.fromCharCode.apply(null, u8.subarray(i,i+chunk)); }
+function b64(u8) {
+  let s = ""; const chunk = 0x8000;
+  for (let i = 0; i < u8.length; i += chunk) {
+    s += String.fromCharCode.apply(null, u8.subarray(i, i + chunk));
+  }
   return btoa(s);
 }
 
-async function sha256Hex(ab){
+async function sha256Hex(ab) {
   const dig = await crypto.subtle.digest("SHA-256", ab);
-  const bytes = new Uint8Array(dig);
-  return [...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");
+  return [...new Uint8Array(dig)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function importOrgKey(jwk){
-  return await crypto.subtle.importKey("jwk", jwk, {name:"ECDH", namedCurve:"P-256"}, false, []);
-}
-async function genEphemeral(){
-  return await crypto.subtle.generateKey({name:"ECDH", namedCurve:"P-256"}, true, ["deriveBits"]);
-}
-async function deriveAesKey(ephPriv, orgPub, saltU8){
-  const bits = await crypto.subtle.deriveBits({name:"ECDH", public:orgPub}, ephPriv, 256);
-  const ikm = new Uint8Array(bits);
-  const hkdfKey = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveKey"]);
-  return await crypto.subtle.deriveKey(
-    {name:"HKDF", hash:"SHA-256", salt:saltU8, info:new TextEncoder().encode("blt-zero-v1")},
-    hkdfKey,
-    {name:"AES-GCM", length:256},
-    false,
-    ["encrypt"]
-  );
-}
-async function fetchDomainKey(domain){
-  const r = await fetch("/api/domain?domain="+encodeURIComponent(domain));
-  if(!r.ok) throw new Error("Domain not registered for BLT-Zero.");
-  return await r.json();
-}
-async function readFilesLimited(fileList){
+async function readFilesLimited(fileList) {
   const files = [...fileList].slice(0, MAX_FILES);
   const out = [];
-  for(const f of files){
+  let total = 0;
+  for (const f of files) {
     const ab = await f.arrayBuffer();
+    if (total + ab.byteLength > MAX_TOTAL) break;
+    total += ab.byteLength;
     out.push({
-      filename:f.name,
-      mime:f.type || "application/octet-stream",
-      size:ab.byteLength,
+      filename: f.name,
+      mime: f.type || "application/octet-stream",
+      size: ab.byteLength,
       sha256: await sha256Hex(ab),
-      b64: b64(new Uint8Array(ab))
+      b64: b64(new Uint8Array(ab)),
     });
   }
   return out;
 }
 
-document.getElementById("f").addEventListener("submit", async (e)=>{
+document.getElementById("f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const status = document.getElementById("status");
   const btn = document.getElementById("btn");
-  const limitMsg = document.getElementById("limitMsg");
-  limitMsg.textContent="";
-  status.textContent="";
-  btn.disabled=true;
+  status.textContent = "";
+  btn.disabled = true;
 
-  try{
+  try {
     const domain = document.getElementById("domain").value.trim().toLowerCase();
     const username = document.getElementById("username").value.trim() || null;
     const url = document.getElementById("url").value.trim();
@@ -216,72 +181,37 @@ document.getElementById("f").addEventListener("submit", async (e)=>{
     const markdown = document.getElementById("markdown").value.trim() || null;
 
     let turnstileToken = "";
-    if (TURNSTILE_ENABLED){
+    if (TURNSTILE_ENABLED) {
       turnstileToken = document.querySelector('input[name="cf-turnstile-response"]')?.value || "";
-      if(!turnstileToken) throw new Error("Turnstile missing. Retry.");
+      if (!turnstileToken) throw new Error("Turnstile missing. Retry.");
     }
 
-    status.textContent="Loading org key…";
-    const org = await fetchDomainKey(domain);
-    const orgJwk = JSON.parse(org.public_key_jwk);
-    const orgPub = await importOrgKey(orgJwk);
-
-    status.textContent="Preparing screenshots…";
+    status.textContent = "Preparing screenshots…";
     const shots = await readFilesLimited(document.getElementById("shots").files || []);
 
-    const report = {
-      v:1, domain, url, username, description, markdown,
-      screenshots: shots.map(s=>({filename:s.filename,mime:s.mime,size:s.size,sha256:s.sha256})),
-      screenshots_b64: shots.map(s=>({filename:s.filename,b64:s.b64})),
-      created_at: new Date().toISOString()
-    };
-
-    status.textContent="Encrypting…";
-    const reportBytes = new TextEncoder().encode(JSON.stringify(report));
-
-    const eph = await genEphemeral();
-    const ephPubJwk = await crypto.subtle.exportKey("jwk", eph.publicKey);
-
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const aesKey = await deriveAesKey(eph.privateKey, orgPub, salt);
-
-    const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, aesKey, reportBytes);
-
-    const pkg = {
-      v:1, alg:org.alg, key_id:org.key_id,
-      domain, username,
-      eph_pub_jwk: ephPubJwk,
-      salt_b64: b64(salt),
-      iv_b64: b64(iv),
-      ciphertext_b64: b64(new Uint8Array(ct))
-    };
-
-    const pkgBytes = new TextEncoder().encode(JSON.stringify(pkg));
-    if(pkgBytes.byteLength > MAX_TOTAL){
-      limitMsg.textContent="Encrypted package too large. Reduce screenshots/size.";
-      throw new Error("Size limit exceeded.");
-    }
-
-    status.textContent="Submitting…";
+    status.textContent = "Submitting…";
     const resp = await fetch("/submit", {
-      method:"POST",
-      headers: {"content-type":"application/json"},
+      method: "POST",
+      headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        domain, username,
+        domain,
+        username,
+        url,
+        description,
+        markdown,
+        screenshots_b64: shots,
         turnstile_token: turnstileToken,
-        encrypted_package: pkg
-      })
+      }),
     });
 
-    const out = await resp.json().catch(()=>({}));
-    if(!resp.ok) throw new Error(out?.error || "Submit failed.");
+    const out = await resp.json().catch(() => ({}));
+    if (!resp.ok) throw new Error(out?.error || "Submit failed.");
 
-    status.innerHTML = "✅ Submitted. ID: <code class='px-2 py-1 rounded bg-gray-100 dark:bg-gray-800'>"+out.submission_id+"</code>";
-  }catch(err){
+    status.innerHTML = "✅ Submitted. ID: <code class='px-2 py-1 rounded bg-gray-100 dark:bg-gray-800'>" + out.submission_id + "</code>";
+  } catch (err) {
     status.textContent = "❌ " + (err?.message || String(err));
-  }finally{
-    btn.disabled=false;
+  } finally {
+    btn.disabled = false;
   }
 });
 </script>
