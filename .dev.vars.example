@@ -1,7 +1,8 @@
 APP_ORIGIN=http://127.0.0.1:8787
-ADMIN_TOKEN=your_local_admin_token
 MAX_UPLOAD_BYTES=3145728
-RATE_LIMIT_PER_MINUTE=20
+
+# Organisation email — all reports are delivered here
+ORG_EMAIL=security@your-org.com
 
 # Disable Turnstile for local dev
 DISABLE_TURNSTILE=true
@@ -9,7 +10,5 @@ DISABLE_TURNSTILE=true
 # Email provider (choose one)
 EMAIL_PROVIDER=sendgrid
 SENDGRID_API_KEY=...
-
-# Optional points sync
-# MAIN_BLT_API_URL=https://blt.owasp.org
-# MAIN_BLT_API_TOKEN=...
+SENDGRID_FROM_EMAIL=no-reply@your-domain.com
+SENDGRID_FROM_NAME=BLT-Zero

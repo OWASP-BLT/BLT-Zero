@@ -1,31 +1,26 @@
 name = "blt-zero"
 main = "src/main.py"
-compatibility_date = "2026-02-28" # Use a current date
+compatibility_date = "2026-02-28"
 compatibility_flags = ["python_workers"]
 
+# HTML file handling
 [[rules]]
 type = "Text"
 globs = ["**/*.html"]
 fallthrough = true
 
+# Static assets
 [assets]
 directory = "./static"
 
+# Environment variables
 [vars]
 APP_ORIGIN = "https://zero.owaspblt.org"
-MAIN_BLT_API_URL = "https://api.owaspblt.org"
-POINTS_AWARD = "3"
-MAX_UPLOAD_BYTES = "3145728" # 3 MiB encrypted package cap
-RATE_LIMIT_PER_MINUTE = "5"
+MAX_UPLOAD_BYTES = "3145728"  # 3 MiB cap
 
-EMAIL_PROVIDER = "mailchannels" # or "sendgrid"
+EMAIL_PROVIDER = "mailchannels"  # or "sendgrid"
 DISABLE_TURNSTILE = "true"
 TURNSTILE_SITE_KEY = "REPLACE_ME"
 
-# Admin onboarding page protection (set as secrets ideally)
-# ADMIN_TOKEN: long random string; used for /admin/onboard POST auth
-
-[[d1_databases]]
-binding = "DB"
-database_name = "blt_zero"
-database_id = "0fd8d04c-f434-48a1-a5d2-617b49ce79ff" # Replace with your actual D1 database ID
+# Set ORG_EMAIL as a secret (wrangler secret put ORG_EMAIL) or here for dev
+# ORG_EMAIL = "security@your-org.com"

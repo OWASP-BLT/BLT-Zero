@@ -14,21 +14,21 @@
         Submit Vulnerability Report
       </h1>
       <p class="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-gray-600 dark:text-gray-400">
-        Your report is encrypted server-side with AES-256-GCM. The decryption key is included in the email sent to the organisation.
+        Your report is delivered to the organisation as a password-protected ZIP. The password is included in the same email.
       </p>
     </div>
 
     <!-- Security Info Card -->
     <div class="rounded-lg border bg-white dark:bg-dark-surface p-6 mb-8">
       <div class="flex flex-wrap gap-2 mb-4">
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">AES-256-GCM Encrypted</span>
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Key sent with report</span>
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">ZIP attachment</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Password-Protected ZIP</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">20-char random password</span>
+        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">No extra tools needed</span>
       </div>
       <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-        Your report is encrypted <strong>server-side</strong> with AES-256-GCM and delivered to the organisation as an
-        encrypted ZIP attachment. The decryption key is included in the same email so the organisation can open it
-        without any additional tooling.
+        Your report is packaged into a <strong>password-protected ZIP file</strong> and emailed to the organisation.
+        The password (20 random characters) is included in the same email — the organisation simply opens the
+        ZIP with any standard archive tool and enters the password.
       </p>
       <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
         <li>• Max screenshots: <strong>{{MAX_FILES}}</strong></li>
@@ -207,7 +207,7 @@ document.getElementById("f").addEventListener("submit", async (e) => {
     const out = await resp.json().catch(() => ({}));
     if (!resp.ok) throw new Error(out?.error || "Submit failed.");
 
-    status.innerHTML = "✅ Submitted. ID: <code class='px-2 py-1 rounded bg-gray-100 dark:bg-gray-800'>" + out.submission_id + "</code>";
+    status.innerHTML = "✅ Report submitted. The organisation will receive a password-protected ZIP by email.";
   } catch (err) {
     status.textContent = "❌ " + (err?.message || String(err));
   } finally {

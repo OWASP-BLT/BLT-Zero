@@ -6,15 +6,18 @@ declare namespace Cloudflare {
 		mainModule: typeof import("./src/worker");
 	}
 	interface Env {
-		DB: D1Database;
-		APP_ORIGIN: "https://zero.owaspblt.org";
-		MAIN_BLT_API_URL: "https://api.owaspblt.org";
-		POINTS_AWARD: "3";
-		MAX_UPLOAD_BYTES: "3145728";
-		RATE_LIMIT_PER_MINUTE: "5";
-		EMAIL_PROVIDER: "mailchannels";
-		DISABLE_TURNSTILE: "true";
-		TURNSTILE_SITE_KEY: "REPLACE_ME";
+		APP_ORIGIN: string;
+		MAX_UPLOAD_BYTES: string;
+		EMAIL_PROVIDER: string;
+		DISABLE_TURNSTILE: string;
+		TURNSTILE_SITE_KEY: string;
+		ORG_EMAIL: string;
+		// Optional — only required when EMAIL_PROVIDER = "sendgrid"
+		SENDGRID_API_KEY?: string;
+		SENDGRID_FROM_EMAIL?: string;
+		SENDGRID_FROM_NAME?: string;
+		// Optional — only required when DISABLE_TURNSTILE != "true"
+		TURNSTILE_SECRET?: string;
 	}
 }
 interface Env extends Cloudflare.Env {}
