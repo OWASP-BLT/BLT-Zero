@@ -12,6 +12,10 @@ def run(cmd):
         sys.exit(p.returncode)
     return p.stdout
 
+def esc(v):
+    """Escape single quotes for safe SQL string interpolation."""
+    return v.replace("'", "''")
+
 def add_domain(args):
     pub = pathlib.Path(args.public_key).read_text(encoding="utf-8").strip()
     # Validate JSON
@@ -21,7 +25,7 @@ def add_domain(args):
 
     sql = f"""
 INSERT INTO domains (domain, org_email, alg, key_id, public_key_jwk, is_active)
-VALUES ('{args.domain}', '{args.email}', 'ECDH_P256_HKDF_SHA256_AESGCM', '{args.key_id}', '{pub.replace("'", "''")}', 1)
+VALUES ('{esc(args.domain)}', '{esc(args.email)}', 'ECDH_P256_HKDF_SHA256_AESGCM', '{esc(args.key_id)}', '{esc(pub)}', 1)
 ON CONFLICT(domain) DO UPDATE SET
   org_email=excluded.org_email,
   alg=excluded.alg,
