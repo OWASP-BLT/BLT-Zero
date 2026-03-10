@@ -59,19 +59,23 @@ def validate_domain(domain: str) -> bool:
         if not re.match(r'^[a-z0-9-]+$', label, re.IGNORECASE):
             return False
     
-    # Prevent obviously invalid domains
-    invalid_patterns = [
-        'localhost',
-        'example.com',
-        'example.org',
-        'test.com',
-        '..',
-    ]
+    # Prevent obviously invalid domains (boundary-aware checks)
+    reserved_domains = ["example.com", "example.org", "test.com"]
+    invalid_patterns = ["localhost", ".."]
     
     domain_lower = domain.lower()
+    
+    # Check invalid patterns
     for pattern in invalid_patterns:
         if pattern in domain_lower:
             return False
+    
+    # Check reserved domains with boundary awareness
+    labels_lower = domain_lower.split(".")
+    if "localhost" in labels_lower:
+        return False
+    if any((domain_lower.endswith(f"({reserved}")) for reserved in reserved_domains):
+        return False
     
     return True
 
@@ -188,8 +192,10 @@ async def verify_turnstile(env, token: str, ip: str) -> bool:
 
 def generate_csrf_token(env) -> str:
     """Generate CSRF token with timestamp and HMAC signature."""
-    # Use CSRF_SECRET from env, fallback to a warning if not set
-    secret = getattr(env, "CSRF_SECRET", "INSECURE_DEFAULT_SECRET")
+    # Use CSRF_SECRET from env, fallback to None
+    secret = getattr(env, "CSRF_SECRET", None)
+    if not secret:
+        raise RuntimeError("CSRF_SECRET must be configured")
     
     # Token format: timestamp:nonce:hmac
     timestamp = str(int(time.time()))

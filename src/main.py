@@ -48,7 +48,7 @@ class Default(WorkerEntrypoint):
             # Validate and sanitize domain prefill (don't reject, just ignore invalid)
             domain_prefill = ""
             if domain_prefill_raw:
-                normalized = normalize_domain(domain_prefill_raw)
+                normalized = normalize_domain(domain_prefill_raw).strip(".")
                 if validate_domain(normalized):
                     domain_prefill = normalized
             
@@ -183,14 +183,15 @@ class Default(WorkerEntrypoint):
             
             # Validate request size before parsing JSON (DoS protection)
             content_length = request.headers.get("content-length")
-            if content_length:
-                try:
-                    size = int(content_length)
-                    max_request_bytes = int(getattr(env, "MAX_REQUEST_BYTES", "10485760"))  # 10MB default
-                    if size > max_request_bytes:
-                        return Response.json({"error": "request too large"}, status=413)
-                except ValueError:
-                    return Response.json({"error": "invalid content-length"}, status=400)
+            if not content_length:
+                return Response.json({"error": "content-length required"}, status=411)
+            try:
+                size = int(content_length)
+                max_request_bytes = int(getattr(env, "MAX_REQUEST_BYTES", "10485760"))  # 10MB default
+                if size > max_request_bytes:
+                    return Response.json({"error": "request too large"}, status=413)
+            except ValueError:
+                return Response.json({"error": "invalid content-length"}, status=400)
             
             try:
                 payload = await request.json()
