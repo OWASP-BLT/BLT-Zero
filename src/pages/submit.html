@@ -38,6 +38,9 @@
     <!-- Submit Form -->
     <div class="rounded-lg border bg-white dark:bg-dark-surface p-6">
       <form id="f">
+        <!-- CSRF Token -->
+        <input type="hidden" id="csrf_token" value="{{CSRF_TOKEN}}" />
+        
         <div class="space-y-4">
           <!-- Domain -->
           <div>
@@ -268,6 +271,7 @@ document.getElementById("f").addEventListener("submit", async (e)=>{
       method:"POST",
       headers: {"content-type":"application/json"},
       body: JSON.stringify({
+        csrf_token: document.getElementById("csrf_token").value,
         domain, username,
         turnstile_token: turnstileToken,
         encrypted_package: pkg

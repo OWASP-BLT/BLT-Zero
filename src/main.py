@@ -1,4 +1,5 @@
 import json
+import secrets
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from workers import WorkerEntrypoint, Response
@@ -9,11 +10,15 @@ from services.db import get_domain, upsert_domain, insert_submission, rate_limit
 from services.email import send_email, sync_points
 from services.security import (
     normalize_domain,
+    validate_domain,
+    validate_email,
     get_client_ip,
     minute_bucket_iso,
     sha256_hex,
     verify_turnstile,
-    turnstile_enabled
+    turnstile_enabled,
+    generate_csrf_token,
+    validate_csrf_token
 )
 from services.templates import (
     submit_page,
@@ -38,7 +43,17 @@ class Default(WorkerEntrypoint):
         if request.method == "GET" and url.pathname == "/":
             # Parse query parameters
             query_params = parse_qs(urlparse(request.url).query)
-            domain_prefill = query_params.get("domain", [""])[0]
+            domain_prefill_raw = query_params.get("domain", [""])[0]
+            
+            # Validate and sanitize domain prefill (don't reject, just ignore invalid)
+            domain_prefill = ""
+            if domain_prefill_raw:
+                normalized = normalize_domain(domain_prefill_raw)
+                if validate_domain(normalized):
+                    domain_prefill = normalized
+            
+            # Generate CSRF token
+            csrf_token = generate_csrf_token(env)
             
             return html_response(
                 submit_page({
@@ -46,6 +61,7 @@ class Default(WorkerEntrypoint):
                     "turnstileSiteKey": env.TURNSTILE_SITE_KEY if ts_enabled else "",
                     "maxFiles": 3,
                     "maxTotalBytes": int(getattr(env, "MAX_UPLOAD_BYTES", "3145728")),
+                    "csrfToken": csrf_token,
                 })
             )
         
@@ -84,7 +100,7 @@ class Default(WorkerEntrypoint):
             
             # Admin auth
             admin_token = getattr(env, "ADMIN_TOKEN", None)
-            if not admin_token or token != admin_token:
+            if not admin_token or not secrets.compare_digest(token, admin_token):
                 return Response.json({"error": "unauthorized"}, status=401)
             
             # Turnstile verify (auto-pass if disabled)
@@ -137,6 +153,10 @@ class Default(WorkerEntrypoint):
             if not d:
                 return Response.json({"error": "domain required"}, status=400)
             
+            # Validate domain format
+            if not validate_domain(d):
+                return Response.json({"error": "invalid domain format"}, status=400)
+            
             row = await get_domain(env, d)
             if not row or not row["is_active"]:
                 return Response.json({"error": "domain not registered"}, status=404)
@@ -161,12 +181,33 @@ class Default(WorkerEntrypoint):
             if count > max_per_min:
                 return Response.json({"error": "rate limit exceeded"}, status=429)
             
+            # Validate request size before parsing JSON (DoS protection)
+            content_length = request.headers.get("content-length")
+            if content_length:
+                try:
+                    size = int(content_length)
+                    max_request_bytes = int(getattr(env, "MAX_REQUEST_BYTES", "10485760"))  # 10MB default
+                    if size > max_request_bytes:
+                        return Response.json({"error": "request too large"}, status=413)
+                except ValueError:
+                    return Response.json({"error": "invalid content-length"}, status=400)
+            
             try:
                 payload = await request.json()
             except:
                 return Response.json({"error": "invalid json"}, status=400)
             
+            # Validate CSRF token
+            csrf_token = str(payload.get("csrf_token", ""))
+            if not validate_csrf_token(env, csrf_token):
+                return Response.json({"error": "invalid or expired CSRF token"}, status=403)
+            
             domain = normalize_domain(payload.get("domain", ""))
+            
+            # Validate domain format
+            if not validate_domain(domain):
+                return Response.json({"error": "invalid domain format"}, status=400)
+            
             username = payload.get("username")
             username = str(username).strip() if username else None
             turnstile_token = str(payload.get("turnstile_token", ""))
