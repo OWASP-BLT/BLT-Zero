@@ -100,7 +100,7 @@ class Default(WorkerEntrypoint):
             
             # Admin auth
             admin_token = getattr(env, "ADMIN_TOKEN", None)
-            if not admin_token or not secrets.compare_digest(token, admin_token):
+            if not admin_token or token != admin_token:
                 return Response.json({"error": "unauthorized"}, status=401)
             
             # Turnstile verify (auto-pass if disabled)
