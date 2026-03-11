@@ -168,7 +168,7 @@ class Default(WorkerEntrypoint):
             subject = f"BLT‑Zero ZIP Report — {artifact_hash[:12]}"
             disclaimers = {
                 "aes256": "ZIP encryption: AES‑256 (Client-Side).",
-                "none":   "WARNING: Runtime lacks ZIP encryption; sending UNENCRYPTED ZIP (MVP). Handle with extreme care.",
+                "none":   "WARNING: Runtime lacks ZIP encryption; sending UNENCRYPTED ZIP. Handle with extreme care.",
             }
             body_lines = [
                 f"Recipient: {org_email}",

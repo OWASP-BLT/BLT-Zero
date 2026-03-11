@@ -1,4 +1,4 @@
-# BLT-Zero (MVP Phase)
+# BLT-Zero
 
 **Zero-Trust Vulnerability Reporting — encrypted payload delivery.**
 
@@ -28,7 +28,7 @@ BLT-Zero provides a secure workflow for delivering vulnerability reports:
 
 ---
 
-## 🏗️ Architecture (Current MVP)
+## 🏗️ Architecture
 
 ### Components
 
@@ -53,7 +53,7 @@ BLT-Zero provides a secure workflow for delivering vulnerability reports:
 ## 🔒 Cryptography & Decryption
 
 **Client-Side Encryption**
-For this MVP phase, to ensure maximum compatibility and avoid requiring organizations to pre-generate PGP/JWK keys, encryption is handled via **AES-256 Password-Protected ZIPs**. The browser generates a secure, ephemeral password, encrypts the payload, and the Worker forwards this password to the organization alongside the file. 
+To ensure maximum compatibility and avoid requiring organizations to pre-generate PGP/JWK keys, encryption is handled via **AES-256 Password-Protected ZIPs**. The browser generates a secure, ephemeral password, encrypts the payload, and the Worker forwards this password to the organization alongside the file. 
 
 **Decryption (Important Note for Windows Users)**
 Because the browser uses modern AES-256 encryption, **the default Windows File Explorer cannot extract the ZIP file** (it will throw Error `0x80004005`). 
