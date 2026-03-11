@@ -72,36 +72,21 @@ def layout(title: str, body: str, include_turnstile_script: bool) -> str:
         "TURNSTILE_SCRIPT": turnstile_script
     })
 
-
-def submit_page(opts: dict) -> str:
-    """Generate the submission page HTML."""
-    domain_prefill = opts.get("domainPrefill", "")
-    turnstile_site_key = opts.get("turnstileSiteKey", "")
-    max_files = opts.get("maxFiles", 3)
-    max_total_bytes = opts.get("maxTotalBytes", 3145728)
+def submit_page(context: dict) -> str:
+    max_files = str(context.get("maxFiles", 5))
+    max_total = str(context.get("maxTotalBytes", 5242880))
     
-    ts_enabled = is_turnstile_enabled(turnstile_site_key)
-    
-    turnstile_widget = (
-        f'<div class="cf-turnstile" data-sitekey="{esc(turnstile_site_key)}"></div>'
-        if ts_enabled else
-        '<p class="text-sm text-muted-foreground">Turnstile disabled (local testing).</p>'
-    )
-    
-    # Read submit page HTML
+    # 1. Read the file using your existing utility
     submit_html = read_html_file("submit.html")
     
-    body = replace_template(submit_html, {
-        "MAX_FILES": str(max_files),
-        "MAX_MB": str(max_total_bytes // (1024 * 1024)),
-        "DOMAIN_PREFILL": esc(domain_prefill),
-        "TURNSTILE_WIDGET": turnstile_widget,
-        "MAX_TOTAL_BYTES": str(max_total_bytes),
-        "TURNSTILE_ENABLED": "true" if ts_enabled else "false"
+    # 2. Swap out the variables using your replace_template utility
+    final_html = replace_template(submit_html, {
+        "MAX_FILES": max_files,
+        "MAX_TOTAL": max_total
     })
     
-    return layout("BLT-Zero — Submit Encrypted Report", body, ts_enabled)
-
+    # 3. Return the HTML directly (do not use layout() since submit.html is a full page)
+    return final_html
 
 def docs_security() -> str:
     """Generate the security documentation page."""

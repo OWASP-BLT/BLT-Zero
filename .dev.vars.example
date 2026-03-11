@@ -1,10 +1,6 @@
 APP_ORIGIN=http://127.0.0.1:8787
-ADMIN_TOKEN=your_local_admin_token
 MAX_UPLOAD_BYTES=3145728
 RATE_LIMIT_PER_MINUTE=20
-
-# Disable Turnstile for local dev
-DISABLE_TURNSTILE=true
 
 # Email provider (choose one)
 EMAIL_PROVIDER=sendgrid
