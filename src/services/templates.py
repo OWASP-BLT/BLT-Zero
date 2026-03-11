@@ -99,7 +99,7 @@ def docs_decrypt() -> str:
     return layout("BLT-Zero — Decrypt Guide", docs_decrypt_html, False)
 
 
-def admin_onboard_page(turnstile_site_key: str = None) -> str:
+def admin_onboard_page() -> str:
     """Generate the admin onboarding page."""
 
     admin_onboard_html = read_html_file("admin-onboard.html")

@@ -64,7 +64,6 @@ To decrypt the report, organizations must use a modern archive utility:
 - 📧 Direct email delivery to org security inbox via SendGrid.
 - 🧾 Minimal storage: domain + optional username + artifact hash only.
 - 🛡️ Rate limiting to prevent abuse.
-- 🧩 Optional Turnstile (Can be disabled for local dev using `DISABLE_TURNSTILE=true`).
 - 📊 Optional points sync to main BLT.
 
 ---
