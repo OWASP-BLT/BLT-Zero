@@ -1,4 +1,4 @@
-# BLT-Zero
+# BLT-Zero (MVP Phase)
 
 **Zero-Trust Vulnerability Reporting — encrypted payload delivery.**
 
@@ -27,7 +27,7 @@ BLT-Zero provides a secure workflow for delivering vulnerability reports:
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture (Current MVP)
 
 ### Components
 
@@ -91,7 +91,7 @@ To decrypt the report, organizations must use a modern archive utility:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/OWASP-BLT/BLT-Zero.git
+git clone [https://github.com/OWASP-BLT/BLT-Zero.git](https://github.com/OWASP-BLT/BLT-Zero.git)
 cd BLT-Zero
 ```
 

@@ -13,7 +13,7 @@ directory = "./static"
 
 [vars]
 APP_ORIGIN = "https://zero.owaspblt.org"
-MAIN_BLT_API_URL = "https://api.owaspblt.org" # Base URL for optional BLT points/BACON sync
+MAIN_BLT_API_URL = "https://api.owaspblt.org" # Base URL for BLT points/BACON sync
 POINTS_AWARD = "3" # Default points awarded per successful encrypted submission (used by BLT API)
 MAX_UPLOAD_BYTES = "3145728" # 3 MiB encrypted package cap
 RATE_LIMIT_PER_MINUTE = "5"

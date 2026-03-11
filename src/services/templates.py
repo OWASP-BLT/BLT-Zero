@@ -58,14 +58,12 @@ def layout(title: str, body: str, include_turnstile_script: bool) -> str:
     })
 
 def submit_page(context: dict) -> str:
-    """Generate the submit vulnerability report page."""
     max_files = str(context.get("maxFiles", 5))
     max_total = str(context.get("maxTotalBytes", 5242880))
     
-    # 1. Read the template file
+    # 1. Read the file using your existing utility
     submit_html = read_html_file("submit.html")
     
-    # 2. Swap out the variables
     body = replace_template(submit_html, {
         "MAX_FILES": max_files,
         "MAX_TOTAL": max_total
