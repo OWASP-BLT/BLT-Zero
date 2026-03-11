@@ -7,21 +7,6 @@ def esc(s: str) -> str:
     """Escape HTML characters."""
     return html.escape(s)
 
-
-def is_turnstile_enabled(site_key: str = None) -> bool:
-    """Check if Turnstile is enabled based on site key."""
-    if not site_key:
-        return False
-    
-    v = str(site_key).strip().lower()
-    if not v:
-        return False
-    if v in ["false", "0", "null", "undefined"]:
-        return False
-    
-    return True
-
-
 def replace_template(template: str, replacements: dict) -> str:
     """Replace {{key}} placeholders in template with values."""
     result = template
@@ -73,20 +58,21 @@ def layout(title: str, body: str, include_turnstile_script: bool) -> str:
     })
 
 def submit_page(context: dict) -> str:
+    """Generate the submit vulnerability report page."""
     max_files = str(context.get("maxFiles", 5))
     max_total = str(context.get("maxTotalBytes", 5242880))
     
-    # 1. Read the file using your existing utility
+    # 1. Read the template file
     submit_html = read_html_file("submit.html")
     
-    # 2. Swap out the variables using your replace_template utility
-    final_html = replace_template(submit_html, {
+    # 2. Swap out the variables
+    body = replace_template(submit_html, {
         "MAX_FILES": max_files,
         "MAX_TOTAL": max_total
     })
     
-    # 3. Return the HTML directly (do not use layout() since submit.html is a full page)
-    return final_html
+    # 3. Return wrapped in the standard layout
+    return layout("BLT-Zero — Submit Encrypted Report", body, False)
 
 def docs_security() -> str:
     """Generate the security documentation page."""
@@ -115,25 +101,10 @@ def docs_decrypt() -> str:
 
 def admin_onboard_page(turnstile_site_key: str = None) -> str:
     """Generate the admin onboarding page."""
-    ts_enabled = is_turnstile_enabled(turnstile_site_key)
-    
-    turnstile_widget = (
-        f'<div class="cf-turnstile" data-sitekey="{esc(turnstile_site_key or "")}"></div>'
-        if ts_enabled else
-        '<p class="text-sm text-muted-foreground">Turnstile disabled (local testing).</p>'
-    )
-    
-    turnstile_status = "+ Turnstile" if ts_enabled else "(Turnstile disabled)"
-    
+
     admin_onboard_html = read_html_file("admin-onboard.html")
-    
-    body = replace_template(admin_onboard_html, {
-        "TURNSTILE_WIDGET": turnstile_widget,
-        "TURNSTILE_STATUS": turnstile_status,
-        "TURNSTILE_ENABLED": "true" if ts_enabled else "false"
-    })
-    
-    return layout("BLT-Zero — Org Admin Onboarding", body, ts_enabled)
+
+    return layout("BLT-Zero — Org Admin Onboarding", admin_onboard_html,False)
 
 
 def onboarding_email_body(app_origin: str, domain: str) -> str:

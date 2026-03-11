@@ -5,7 +5,9 @@ from js import Headers, fetch
 def _b64encode_attachment(data):
     if data is None:
         return None
-    if isinstance(data, str):
+    if not isinstance(data, (bytes, bytearray, memoryview)):
+        if not isinstance(data, str):
+            data = json.dumps(data)
         data = data.encode("utf-8")
     return base64.b64encode(data).decode("ascii")
 

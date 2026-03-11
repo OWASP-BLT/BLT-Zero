@@ -22,7 +22,6 @@ BLT-Zero provides a secure workflow for delivering vulnerability reports:
 |----------|-------------|
 | **Encrypted Transit** | Worker receives only an encrypted ZIP package in Base64 (no plaintext files). |
 | **Direct Delivery** | Reports are emailed directly to the organization's security team. |
-| **Minimal metadata** | Only domain, optional username, hash, and timestamps are stored in D1. |
 | **No tracking by design** | No analytics/cookies/fingerprinting in this project. |
 | **Abuse controls** | Rate limiting + optional Cloudflare Turnstile. |
 
@@ -41,12 +40,6 @@ BLT-Zero provides a secure workflow for delivering vulnerability reports:
 - **Worker (Python / FastAPI)**
   - Validates request + (optional) Turnstile.
   - Emails the encrypted ZIP attachment and the decryption password to the org inbox via SendGrid.
-  - Stores minimal metadata in D1 (no report content or passwords are saved to the database).
-
-- **D1 (SQLite)**
-  - `domains`: domain → org email + key_id
-  - `submissions`: submission id + domain + optional username + artifact hash
-  - `rate_limits`: simple per-IP minute bucket counters
 
 ---
 
@@ -81,7 +74,7 @@ To decrypt the report, organizations must use a modern archive utility:
 1. Reporter fills out the vulnerability form and attaches screenshots.
 2. Browser intercepts the submission, generates a password, and bundles everything into an AES-256 encrypted ZIP.
 3. Worker receives the encrypted Base64 string and the password.
-4. Worker emails the ciphertext ZIP attachment + password to the org inbox and stores minimal metadata in D1.
+4. Worker emails the ciphertext ZIP attachment + password to the org inbox.
 5. Org receives the email, downloads the ZIP, and decrypts it locally using 7-Zip.
 
 ---
@@ -90,7 +83,6 @@ To decrypt the report, organizations must use a modern archive utility:
 
 - Runtime: Cloudflare Workers (Python support)
 - Frontend Crypto: `@zip.js/zip.js` (AES-256)
-- DB: Cloudflare D1 (SQLite)
 - Email: SendGrid
 - Protection: optional Turnstile + rate limiting
 
@@ -100,7 +92,7 @@ To decrypt the report, organizations must use a modern archive utility:
 
 1. Clone the repository:
 ```bash
-git clone [https://github.com/OWASP-BLT/BLT-Zero.git](https://github.com/OWASP-BLT/BLT-Zero.git)
+git clone https://github.com/OWASP-BLT/BLT-Zero.git
 cd BLT-Zero
 ```
 
@@ -114,21 +106,7 @@ npm install -g wrangler
 wrangler login
 ```
 
-4. Create the D1 database:
-```bash
-wrangler d1 create blt_zero
-```
-
-5. Create `.dev.vars` file from `.dev.vars.example` and populate wrangler.toml with Database ID from previous step:
-
-6. Apply database migrations:
-```bash
-# For local development
-wrangler d1 migrations apply blt_zero --local
-
-# For production (remote database)
-wrangler d1 migrations apply blt_zero --remote
-```
+4. Create `.dev.vars` file from `.dev.vars.example` and populate wrangler.toml with Database ID from previous step:
 
 ### Development
 

@@ -119,8 +119,13 @@ class Default(WorkerEntrypoint):
             except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
 
+            if not isinstance(payload, dict):
+                return Response.json({"error": "json object required"}, status=400)
+
             org_email = str(payload.get("org_email", "")).strip()
             report = payload.get("report", {}) or {}
+            if not isinstance(report, dict):
+                return Response.json({"error": "report must be an object"}, status=400)
             
             # Extract the new payload fields
             zip_b64 = payload.get("zip_content_b64")
