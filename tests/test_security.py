@@ -67,6 +67,16 @@ class _Env:
             self.TURNSTILE_SECRET = secret
 
 
+class _EnvNoDisable:
+    """Env variant without DISABLE_TURNSTILE (tests getattr default path)."""
+
+    def __init__(self, site_key: str | None, secret: str | None):
+        if site_key is not None:
+            self.TURNSTILE_SITE_KEY = site_key
+        if secret is not None:
+            self.TURNSTILE_SECRET = secret
+
+
 def test_turnstile_enabled_false_when_globally_disabled():
     env = _Env(disable="true", site_key="site", secret="secret")
     assert turnstile_enabled(env) is False
@@ -79,6 +89,12 @@ def test_turnstile_enabled_false_when_missing_keys():
 
 def test_turnstile_enabled_true_when_configured():
     env = _Env(disable="false", site_key="site", secret="secret")
+    assert turnstile_enabled(env) is True
+
+
+def test_turnstile_enabled_true_when_disable_flag_missing():
+    """When DISABLE_TURNSTILE is absent, getattr defaults to 'false'; keys present => enabled."""
+    env = _EnvNoDisable(site_key="site", secret="secret")
     assert turnstile_enabled(env) is True
 
 
