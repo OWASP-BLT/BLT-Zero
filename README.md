@@ -140,6 +140,32 @@ This will generate:
 python tools/org_decrypt.py private_key.jwk package.json
 ```
 
+### Optional BLT points / BACON sync
+
+BLT-Zero can **optionally** award BLT points/BACON for successful encrypted submissions
+without ever sending plaintext report data to the main BLT platform.
+
+- If the reporter supplies a `username` and you configure BLT sync, the Worker will
+  POST a small JSON payload to the main BLT API:
+
+  ```json
+  { "username": "<reporter>", "domain_name": "<program domain>" }
+  ```
+
+- No report content, ciphertext, or fields derived from the encrypted package are sent.
+
+To enable this integration:
+
+1. Configure the following variables in `wrangler.toml` / `.dev.vars`:
+
+   - `MAIN_BLT_API_URL` – base URL for the BLT API (defaults to `https://api.owaspblt.org`)
+   - `MAIN_BLT_API_TOKEN` – BLT API token with permission to award points for Zero-Trust submissions
+
+2. Deploy BLT-Zero with those values set.
+
+If `MAIN_BLT_API_TOKEN` is not set, BLT sync is silently skipped and submissions
+remain purely local to BLT-Zero.
+
 ## 🤝 Contributing
 
 BLT-Zero is part of [OWASP BLT Project #79 — Zero Trust Vulnerability Reporting](https://github.com/OWASP-BLT/BLT-Zero/issues/1).

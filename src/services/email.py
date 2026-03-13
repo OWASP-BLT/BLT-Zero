@@ -99,5 +99,27 @@ async def send_email(
         body=json.dumps(mailchannels),
     )
     if not r.ok:
-        txt = await r.text() if hasattr(r, "text") else ""
-        raise Exception(f"Email delivery failed (MailChannels): {r.status} {txt}")
+        raise Exception("Email delivery failed (MailChannels).")
+
+
+async def sync_points(env, username, domain):
+    """Sync points with main BLT API."""
+    token = getattr(env, "MAIN_BLT_API_TOKEN", None)
+    if not token:
+        return
+    
+    headers = Headers.new()
+    headers.set("content-type", "application/json")
+    headers.set("authorization", f"Token {token}")
+    
+    try:
+        await fetch(
+            f"{env.MAIN_BLT_API_URL}/api/v1/zero-trust-points/",
+            method="POST",
+            headers=headers,
+            body=json.dumps({"username": username, "domain_name": domain}),
+        )
+    except Exception:
+        # Best-effort only: never block the submission path if BLT sync fails.
+        # Intentionally avoid logging username or domain here to preserve privacy.
+        return
