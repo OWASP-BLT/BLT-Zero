@@ -43,6 +43,13 @@ def test_minute_bucket_iso_with_fixed_datetime():
     assert minute_bucket_iso(dt) == "2026-03-01T12:34"
 
 
+def test_minute_bucket_iso_default_uses_current_time():
+    """Call with no args; assert returned string has YYYY-MM-DDTHH:MM shape."""
+    result = minute_bucket_iso()
+    assert len(result) == 16
+    assert result[4] == "-" and result[7] == "-" and result[10] == "T" and result[13] == ":"
+
+
 @pytest.mark.asyncio
 async def test_sha256_hex_matches_known_value():
     data = b"blt-zero-test"
@@ -73,4 +80,15 @@ def test_turnstile_enabled_false_when_missing_keys():
 def test_turnstile_enabled_true_when_configured():
     env = _Env(disable="false", site_key="site", secret="secret")
     assert turnstile_enabled(env) is True
+
+
+def test_turnstile_enabled_false_when_keys_are_empty_strings():
+    """Empty string keys should be treated as disabled."""
+    class EnvWithEmptyKeys:
+        DISABLE_TURNSTILE = "false"
+        TURNSTILE_SITE_KEY = ""
+        TURNSTILE_SECRET = ""
+
+    env = EnvWithEmptyKeys()
+    assert turnstile_enabled(env) is False
 
