@@ -91,9 +91,14 @@ async def sync_points(env, username, domain):
     headers.set("content-type", "application/json")
     headers.set("authorization", f"Token {token}")
     
-    await fetch(
-        f"{env.MAIN_BLT_API_URL}/api/v1/zero-trust-points/",
-        method="POST",
-        headers=headers,
-        body=json.dumps({"username": username, "domain_name": domain})
-    )
+    try:
+        await fetch(
+            f"{env.MAIN_BLT_API_URL}/api/v1/zero-trust-points/",
+            method="POST",
+            headers=headers,
+            body=json.dumps({"username": username, "domain_name": domain}),
+        )
+    except Exception:
+        # Best-effort only: never block the submission path if BLT sync fails.
+        # Intentionally avoid logging username or domain here to preserve privacy.
+        return
