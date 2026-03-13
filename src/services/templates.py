@@ -79,6 +79,7 @@ def submit_page(opts: dict) -> str:
     turnstile_site_key = opts.get("turnstileSiteKey", "")
     max_files = opts.get("maxFiles", 3)
     max_total_bytes = opts.get("maxTotalBytes", 3145728)
+    csrf_token = opts.get("csrfToken", "")
     
     ts_enabled = is_turnstile_enabled(turnstile_site_key)
     
@@ -97,7 +98,8 @@ def submit_page(opts: dict) -> str:
         "DOMAIN_PREFILL": esc(domain_prefill),
         "TURNSTILE_WIDGET": turnstile_widget,
         "MAX_TOTAL_BYTES": str(max_total_bytes),
-        "TURNSTILE_ENABLED": "true" if ts_enabled else "false"
+        "TURNSTILE_ENABLED": "true" if ts_enabled else "false",
+        "CSRF_TOKEN": esc(csrf_token)
     })
     
     return layout("BLT-Zero — Submit Encrypted Report", body, ts_enabled)
