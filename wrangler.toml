@@ -22,6 +22,10 @@ EMAIL_PROVIDER = "mailchannels" # or "sendgrid"
 DISABLE_TURNSTILE = "true"
 TURNSTILE_SITE_KEY = "REPLACE_ME"
 
+# Set at deploy time (e.g. wrangler deploy --var GIT_COMMIT_SHA=$(git rev-parse HEAD) --var GIT_COMMIT_DATE=$(git log -1 --format=%cI))
+GIT_COMMIT_SHA = ""
+GIT_COMMIT_DATE = ""
+
 # Admin onboarding page protection (set as secrets ideally)
 # ADMIN_TOKEN: long random string; used for /admin/onboard POST auth
 

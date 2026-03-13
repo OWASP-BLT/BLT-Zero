@@ -53,7 +53,7 @@ async def send_email(env, to, subject, body, attachment_name=None, attachment_js
     # MailChannels
     mailchannels = {
         "personalizations": [{"to": [{"email": to}]}],
-        "from": {"email": "no-reply@zero.blt.owasp.org", "name": "BLT-Zero"},
+        "from": {"email": "no-reply@zero.owaspblt.org", "name": "BLT-Zero"},
         "subject": subject,
         "content": [{"type": "text/plain", "value": body}],
     }
