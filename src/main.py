@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from workers import WorkerEntrypoint, Response
@@ -166,14 +167,19 @@ class Default(WorkerEntrypoint):
             except:
                 return Response.json({"error": "invalid json"}, status=400)
             
-            domain = normalize_domain(payload.get("domain", ""))
+            domain = normalize_domain(payload.get("domain", "")) or None
             username = payload.get("username")
             username = str(username).strip() if username else None
+            reporter_email = str(payload.get("reporter_email", "")).strip()
             turnstile_token = str(payload.get("turnstile_token", ""))
             encrypted_package = payload.get("encrypted_package")
             
-            if not domain or not encrypted_package:
-                return Response.json({"error": "domain and encrypted_package required"}, status=400)
+            if not reporter_email:
+                return Response.json({"error": "reporter_email required"}, status=400)
+            
+            # Basic email format validation
+            if not re.match(r'^[^@\s]+@[^@\s]+\.[^@\s]+$', reporter_email):
+                return Response.json({"error": "reporter_email must be a valid email address"}, status=400)
             
             if ts_enabled and not turnstile_token:
                 return Response.json({"error": "turnstile_token required"}, status=400)
@@ -182,65 +188,104 @@ class Default(WorkerEntrypoint):
             if not ok:
                 return Response.json({"error": "turnstile failed"}, status=403)
             
-            row = await get_domain(env, domain)
-            if not row or not row["is_active"]:
-                return Response.json({"error": "domain not registered"}, status=404)
-            
-            # Validate encrypted package shape only
-            if encrypted_package.get("domain") != domain:
-                return Response.json({"error": "domain mismatch"}, status=400)
-            
-            if (not encrypted_package.get("ciphertext_b64") or
-                not encrypted_package.get("iv_b64") or
-                not encrypted_package.get("salt_b64") or
-                not encrypted_package.get("eph_pub_jwk")):
-                return Response.json({"error": "invalid encrypted package"}, status=400)
-            
-            pkg_json = json.dumps(encrypted_package)
-            pkg_bytes = pkg_json.encode('utf-8')
-            max_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", "3145728"))
-            
-            if len(pkg_bytes) > max_bytes:
-                return Response.json({"error": "encrypted package too large"}, status=413)
-            
-            artifact_hash = await sha256_hex(pkg_bytes)
-            
             # Generate submission ID using crypto.randomUUID()
             submission_id = str(js_crypto.randomUUID())
             
-            # Email ciphertext package to org
-            subject = f"BLT-Zero Encrypted Report — {domain} — {submission_id}"
-            body_lines = [
-                f"Encrypted vulnerability report for: {domain}",
-                f"Submission ID: {submission_id}",
-                f"Ciphertext SHA-256: {artifact_hash}",
-                "",
-                f"Decrypt guide: {env.APP_ORIGIN}/docs/decrypt",
-                f"Security model: {env.APP_ORIGIN}/docs/security",
-                "",
-                "BLT-Zero cannot decrypt this report.",
-            ]
-            body = "\n".join(body_lines)
-            
-            await send_email(
-                env,
-                row["org_email"],
-                subject,
-                body,
-                f"blt-zero-{domain}-{artifact_hash}.json",
-                pkg_json
-            )
+            if encrypted_package:
+                # Validate encrypted package shape only
+                if domain and encrypted_package.get("domain") != domain:
+                    return Response.json({"error": "domain mismatch"}, status=400)
+                
+                if (not encrypted_package.get("ciphertext_b64") or
+                    not encrypted_package.get("iv_b64") or
+                    not encrypted_package.get("salt_b64") or
+                    not encrypted_package.get("eph_pub_jwk")):
+                    return Response.json({"error": "invalid encrypted package"}, status=400)
+                
+                pkg_json = json.dumps(encrypted_package)
+                pkg_bytes = pkg_json.encode('utf-8')
+                max_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", "3145728"))
+                
+                if len(pkg_bytes) > max_bytes:
+                    return Response.json({"error": "encrypted package too large"}, status=413)
+                
+                artifact_hash = await sha256_hex(pkg_bytes)
+                
+                # Email ciphertext package to reporter
+                subject = f"BLT-Zero Encrypted Report — {domain or 'unspecified'} — {submission_id}"
+                body_lines = [
+                    f"Encrypted vulnerability report for: {domain or 'unspecified'}",
+                    f"Submission ID: {submission_id}",
+                    f"Ciphertext SHA-256: {artifact_hash}",
+                    "",
+                    f"Decrypt guide: {env.APP_ORIGIN}/docs/decrypt",
+                    f"Security model: {env.APP_ORIGIN}/docs/security",
+                    "",
+                    "BLT-Zero cannot decrypt this report.",
+                ]
+                body = "\n".join(body_lines)
+                
+                await send_email(
+                    env,
+                    reporter_email,
+                    subject,
+                    body,
+                    f"blt-zero-{domain or 'report'}-{artifact_hash}.json",
+                    pkg_json
+                )
+            else:
+                # Plain (unencrypted) report — domain not registered or not provided
+                url = str(payload.get("url", "")).strip()
+                description = str(payload.get("description", "")).strip()
+                markdown = payload.get("markdown")
+                markdown = str(markdown).strip() if markdown else None
+                
+                plain_report = json.dumps({
+                    "domain": domain,
+                    "url": url,
+                    "username": username,
+                    "description": description,
+                    "markdown": markdown,
+                    "submission_id": submission_id,
+                })
+                plain_bytes = plain_report.encode('utf-8')
+                max_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", "3145728"))
+                
+                if len(plain_bytes) > max_bytes:
+                    return Response.json({"error": "report too large"}, status=413)
+                
+                artifact_hash = await sha256_hex(plain_bytes)
+                
+                subject = f"BLT-Zero Vulnerability Report — {domain or 'unspecified'} — {submission_id}"
+                body_lines = [
+                    f"Vulnerability report for: {domain or 'unspecified'}",
+                    f"Submission ID: {submission_id}",
+                    f"URL: {url}",
+                    "",
+                    "Description:",
+                    description,
+                ]
+                if markdown:
+                    body_lines += ["", "Detailed Report (Markdown):", markdown]
+                body = "\n".join(body_lines)
+                
+                await send_email(
+                    env,
+                    reporter_email,
+                    subject,
+                    body
+                )
             
             # Store minimal metadata
             await insert_submission(env, {
                 "id": submission_id,
-                "domain": domain,
+                "domain": domain or "",
                 "username": username,
                 "artifact_hash": artifact_hash,
             })
             
             # Points sync async
-            if username:
+            if username and domain:
                 ctx.waitUntil(sync_points(env, username, domain))
             
             return Response.json({
