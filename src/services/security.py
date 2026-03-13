@@ -28,11 +28,9 @@ async def sha256_hex(data: bytes) -> str:
 def turnstile_enabled(env) -> bool:
     """Check if Turnstile verification is enabled."""
     return (
-        env.DISABLE_TURNSTILE != "true" 
-        and hasattr(env, "TURNSTILE_SITE_KEY") 
-        and env.TURNSTILE_SITE_KEY
-        and hasattr(env, "TURNSTILE_SECRET")
-        and env.TURNSTILE_SECRET
+        getattr(env, "DISABLE_TURNSTILE", "false") != "true"
+        and bool(getattr(env, "TURNSTILE_SITE_KEY", None))
+        and bool(getattr(env, "TURNSTILE_SECRET", None))
     )
 
 
