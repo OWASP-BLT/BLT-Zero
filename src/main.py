@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from workers import WorkerEntrypoint, Response
@@ -24,12 +25,18 @@ from services.templates import (
     onboarding_email_body
 )
 
+MAX_FILES = int(os.getenv("MAX_FILES", "3"))
+MAX_MB = int(os.getenv("MAX_MB", "3"))
+
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         """Main fetch handler for the worker."""
         env = self.env
         ctx = self.ctx
+        max_files = int(getattr(env, "MAX_FILES", str(MAX_FILES)))
+        max_upload_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", str(MAX_MB * 1024 * 1024)))
+        max_mb = max_upload_bytes // (1024 * 1024)
         
         url = URL.new(request.url)
         ts_enabled = turnstile_enabled(env)
@@ -44,8 +51,8 @@ class Default(WorkerEntrypoint):
                 submit_page({
                     "domainPrefill": domain_prefill,
                     "turnstileSiteKey": env.TURNSTILE_SITE_KEY if ts_enabled else "",
-                    "maxFiles": 3,
-                    "maxTotalBytes": int(getattr(env, "MAX_UPLOAD_BYTES", "3145728")),
+                    "maxFiles": max_files,
+                    "maxTotalBytes": max_upload_bytes,
                 })
             )
         
@@ -171,6 +178,8 @@ class Default(WorkerEntrypoint):
             username = str(username).strip() if username else None
             turnstile_token = str(payload.get("turnstile_token", ""))
             encrypted_package = payload.get("encrypted_package")
+            screenshot_count = payload.get("screenshot_count")
+            screenshot_total_size = payload.get("screenshot_total_size")
             
             if not domain or not encrypted_package:
                 return Response.json({"error": "domain and encrypted_package required"}, status=400)
@@ -196,9 +205,26 @@ class Default(WorkerEntrypoint):
                 not encrypted_package.get("eph_pub_jwk")):
                 return Response.json({"error": "invalid encrypted package"}, status=400)
             
+            
+            if screenshot_count is not None:
+                try:
+                    screenshot_count = int(screenshot_count)
+                except:
+                    return Response.json({"error": "invalid screenshot_count"}, status=400)
+                if screenshot_count < 0 or screenshot_count > max_files:
+                    return Response.json({"error": "screenshot count exceeds limit"}, status=400)
+            
+            if screenshot_total_size is not None:
+                try:
+                    screenshot_total_size = int(screenshot_total_size)
+                except:
+                    return Response.json({"error": "invalid screenshot_total_size"}, status=400)
+                if screenshot_total_size < 0 or screenshot_total_size > (max_mb * 1024 * 1024):
+                    return Response.json({"error": "screenshot total size exceeds limit"}, status=400)
+            
             pkg_json = json.dumps(encrypted_package)
             pkg_bytes = pkg_json.encode('utf-8')
-            max_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", "3145728"))
+            max_bytes = max_upload_bytes
             
             if len(pkg_bytes) > max_bytes:
                 return Response.json({"error": "encrypted package too large"}, status=413)
