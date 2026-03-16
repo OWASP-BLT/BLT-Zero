@@ -26,25 +26,15 @@ def eph_pub_from_jwk(jwk: dict):
     y = int.from_bytes(b64url_decode(jwk["y"]), "big")
     return ec.EllipticCurvePublicNumbers(x, y, ec.SECP256R1()).public_key()
 
-def main():
-    if len(sys.argv) != 3:
-        print("Usage: python tools/org_decrypt.py private_key.jwk package.json")
-        sys.exit(1)
-
-    priv_path, pkg_path = sys.argv[1], sys.argv[2]
-    priv, _ = load_priv_jwk(priv_path)
-
-    pkg = json.load(open(pkg_path, "r", encoding="utf-8"))
+def _ecdh_decrypt(priv, pkg: dict) -> bytes:
+    """Core ECDH-HKDF-AES-GCM decryption shared by both package types."""
     eph_pub = eph_pub_from_jwk(pkg["eph_pub_jwk"])
-
-    # ECDH shared secret
     shared = priv.exchange(ec.ECDH(), eph_pub)
 
     salt = b64_decode(pkg["salt_b64"])
     iv = b64_decode(pkg["iv_b64"])
     ct = b64_decode(pkg["ciphertext_b64"])
 
-    # HKDF -> AES key
     hkdf = HKDF(
         algorithm=hashes.SHA256(),
         length=32,
@@ -54,12 +44,32 @@ def main():
     key = hkdf.derive(shared)
 
     aesgcm = AESGCM(key)
-    pt = aesgcm.decrypt(iv, ct, None)
+    return aesgcm.decrypt(iv, ct, None)
 
-    with open("report.json", "wb") as f:
-        f.write(pt)
+def main():
+    if len(sys.argv) != 3:
+        print("Usage: python tools/org_decrypt.py private_key.jwk package.json")
+        sys.exit(1)
 
-    print("✅ Decrypted -> report.json")
+    priv_path, pkg_path = sys.argv[1], sys.argv[2]
+    priv, _ = load_priv_jwk(priv_path)
+
+    pkg = json.load(open(pkg_path, "r", encoding="utf-8"))
+
+    pt = _ecdh_decrypt(priv, pkg)
+
+    pkg_type = pkg.get("type", "report_package")
+
+    if pkg_type == "password_package":
+        # Phase 2: plaintext is the ZIP password (UTF-8 string)
+        password = pt.decode("utf-8")
+        print("✅ Recovered ZIP password:")
+        print(password)
+    else:
+        # Legacy / Phase 1-style full-report package
+        with open("report.json", "wb") as f:
+            f.write(pt)
+        print("✅ Decrypted -> report.json")
 
 if __name__ == "__main__":
     main()
