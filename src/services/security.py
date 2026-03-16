@@ -23,39 +23,3 @@ def minute_bucket_iso(date: datetime = None) -> str:
 async def sha256_hex(data: bytes) -> str:
     """Calculate SHA-256 hash and return as hex string."""
     return hashlib.sha256(data).hexdigest()
-
-
-def turnstile_enabled(env) -> bool:
-    """Check if Turnstile verification is enabled."""
-    return (
-        getattr(env, "DISABLE_TURNSTILE", "false") != "true"
-        and bool(getattr(env, "TURNSTILE_SITE_KEY", None))
-        and bool(getattr(env, "TURNSTILE_SECRET", None))
-    )
-
-
-async def verify_turnstile(env, token: str, ip: str) -> bool:
-    """Verify Turnstile token with Cloudflare."""
-    # If disabled, always pass
-    if not turnstile_enabled(env):
-        return True
-    
-    # Import fetch from js module
-    from js import fetch, FormData
-    
-    form = FormData.new()
-    form.append("secret", env.TURNSTILE_SECRET)
-    form.append("response", token)
-    form.append("remoteip", ip)
-    
-    resp = await fetch(
-        "https://challenges.cloudflare.com/turnstile/v0/siteverify",
-        method="POST",
-        body=form
-    )
-    
-    if not resp.ok:
-        return False
-    
-    json_data = await resp.json()
-    return bool(json_data.get("success", False))

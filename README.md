@@ -1,8 +1,8 @@
-# BLT-Zero
+# BLT-Zero (MVP Phase)
 
-**Zero-Trust Vulnerability Reporting — ciphertext-only delivery.**
+**Zero-Trust Vulnerability Reporting — encrypted payload delivery.**
 
-BLT-Zero is a Cloudflare Workers site that lets security researchers submit sensitive vulnerability reports **encrypted in the browser** using the target organization’s **public key**. The Worker receives **ciphertext only**, forwards it to the organization’s security inbox, and stores only minimal metadata.
+BLT-Zero is a Cloudflare Workers site that lets security researchers submit sensitive vulnerability reports and screenshots **encrypted directly in the browser**. The Worker receives a pre-encrypted payload, forwards it directly to the organization’s security inbox, and stores only minimal metadata.
 
 It is an independent application under the OWASP BLT project family, intended to run on its own deployment and database.
 
@@ -10,93 +10,79 @@ It is an independent application under the OWASP BLT project family, intended to
 
 ## 🔐 What is BLT-Zero?
 
-BLT-Zero provides a **zero-trust workflow** for delivering vulnerability reports securely:
+BLT-Zero provides a secure workflow for delivering vulnerability reports:
 
-- **Encryption happens client-side (browser)** using the Web Crypto API.
-- **BLT-Zero never receives plaintext** vulnerability details.
-- **Organizations decrypt locally** using their private key.
+- **Encryption happens client-side (browser)** using modern AES-256 ZIP encryption.
+- **BLT-Zero never stores plaintext** vulnerability details.
+- **Organizations decrypt locally** using standard archive tools.
 
 ### Key Principles
 
 | Principle | Description |
 |----------|-------------|
-| **Ciphertext-only server** | Worker receives only an encrypted JSON package (no plaintext). |
-| **Org-only decryption** | Reports are encrypted to the organization’s public key; only their private key can decrypt. |
-| **Minimal metadata** | Only domain, optional username, hash, and timestamps are stored in D1. |
+| **Encrypted Transit** | Worker receives only an encrypted ZIP package in Base64 (no plaintext files). |
+| **Direct Delivery** | Reports are emailed directly to the organization's security team. |
 | **No tracking by design** | No analytics/cookies/fingerprinting in this project. |
 | **Abuse controls** | Rate limiting + optional Cloudflare Turnstile. |
 
 ---
 
-## 🏗️ Architecture
+## 🏗️ Architecture (Current MVP)
 
 ### Components
 
 - **Client (Browser)**
-  - Builds the report JSON in memory
-  - Encrypts it using **P-256 ECDH + HKDF(SHA-256) + AES-GCM**
-  - Sends only the encrypted package to the Worker
+  - Gathers the form data (Target URL, Description, Markdown) and dynamically builds a `report.json` in memory.
+  - Bundles the JSON and uploaded screenshots using `@zip.js/zip.js`.
+  - Generates a strong, random 24-character password and encrypts the ZIP file (AES-256) entirely inside the browser.
+  - Sends the Base64-encoded encrypted ZIP and the generated password to the Worker.
 
-- **Worker (TypeScript)**
-  - Validates request + (optional) Turnstile
-  - Looks up the org public key for the domain from **D1**
-  - Emails the encrypted JSON package to the org inbox (SendGrid or MailChannels)
-  - Stores minimal metadata in D1 (no report content)
-
-- **D1 (SQLite)**
-  - `domains`: domain → org email + org public key (JWK) + key_id
-  - `submissions`: submission id + domain + optional username + artifact hash
-  - `rate_limits`: simple per-IP minute bucket counters
+- **Worker (Python / FastAPI)**
+  - Validates request + (optional) Turnstile.
+  - Emails the encrypted ZIP attachment and the decryption password to the org inbox via SendGrid.
 
 ---
 
-## 🔒 Cryptography (implemented)
+## 🔒 Cryptography & Decryption
 
-**Client-side encryption**
-- Org publishes a **P-256 public key** (JWK) to BLT-Zero (admin onboarding).
-- Browser generates an **ephemeral P-256 keypair**, performs **ECDH**, derives AES key via **HKDF**, encrypts with **AES-GCM**.
-- Output is a JSON “package” containing:
-  - `eph_pub_jwk`, `salt`, `iv`, `ciphertext`, `key_id`, `domain`, etc.
+**Client-Side Encryption**
+To ensure maximum compatibility and avoid requiring organizations to pre-generate PGP/JWK keys, encryption is handled via **AES-256 Password-Protected ZIPs**. The browser generates a secure, ephemeral password, encrypts the payload, and the Worker forwards this password to the organization alongside the file. 
 
-**Decryption**
-- Organization uses the private key locally with the provided `tools/org_decrypt.py`
-- Produces `report.json` (plaintext) on the org side only.
+**Decryption (Important Note for Windows Users)**
+Because the browser uses modern AES-256 encryption, **the default Windows File Explorer cannot extract the ZIP file** (it will throw Error `0x80004005`). 
+
+To decrypt the report, organizations must use a modern archive utility:
+- **Windows:** Use [7-Zip](https://www.7-zip.org/) or WinRAR. Right-click -> Extract Here -> Enter the password from the email.
+- **macOS:** Use The Unarchiver or the built-in Archive Utility.
+- **Linux:** Use the `unzip` command-line tool.
 
 ---
 
 ## ✅ Features
 
-- 🔒 End-to-end encryption in the browser (Worker never sees plaintext)
-- 📧 Direct delivery to org security inbox (ciphertext attachment)
-- 🧾 Minimal storage: domain + optional username + artifact hash only
-- 🧑‍💼 Org onboarding page to register domain + public key and optionally send onboarding email
-- 🧰 Tools
-  - `tools/org_keygen.py` – generate org keypair locally
-  - `tools/org_decrypt.py` – decrypt incoming packages locally
-- 🛡️ Rate limiting
-- 🧩 Optional Turnstile
-  - Can be disabled for local dev using `DISABLE_TURNSTILE=true`
-- 📊 Optional points/BACON sync to main BLT (metadata-only; no report contents)
+- 🔒 Client-side ZIP encryption in the browser (`@zip.js`).
+- 📧 Direct email delivery to org security inbox via SendGrid.
+- 🧾 Minimal storage: domain + optional username + artifact hash only.
+- 🛡️ Rate limiting to prevent abuse.
+- 📊 Optional points sync to main BLT.
 
 ---
 
 ## 🚀 Workflow (end-to-end)
 
-1. Org admin generates keypair locally (private stays with org).
-2. Org admin onboards domain + public key into BLT-Zero (`/admin/onboard`).
-3. Reporter submits report → browser encrypts → Worker receives ciphertext only.
-4. Worker emails ciphertext JSON attachment to org inbox + stores minimal metadata.
-5. Org decrypts locally using `tools/org_decrypt.py`.
+1. Reporter fills out the vulnerability form and attaches screenshots.
+2. Browser intercepts the submission, generates a password, and bundles everything into an AES-256 encrypted ZIP.
+3. Worker receives the encrypted Base64 string and the password.
+4. Worker emails the ciphertext ZIP attachment + password to the org inbox.
+5. Org receives the email, downloads the ZIP, and decrypts it locally using 7-Zip.
 
 ---
 
 ## 🛠️ Tech Stack
 
-- Runtime: Cloudflare Workers
-- Worker Language: TypeScript (best fit for Web Crypto + performance)
-- Crypto: Web Crypto API (ECDH P-256 + HKDF + AES-GCM)
-- DB: Cloudflare D1
-- Email: SendGrid (recommended) or MailChannels
+- Runtime: Cloudflare Workers (Python support)
+- Frontend Crypto: `@zip.js/zip.js` (AES-256)
+- Email: SendGrid
 - Protection: optional Turnstile + rate limiting
 
 ---
@@ -105,7 +91,7 @@ BLT-Zero provides a **zero-trust workflow** for delivering vulnerability reports
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/OWASP-BLT/BLT-Zero.git
+git clone [https://github.com/OWASP-BLT/BLT-Zero.git](https://github.com/OWASP-BLT/BLT-Zero.git)
 cd BLT-Zero
 ```
 
@@ -119,21 +105,7 @@ npm install -g wrangler
 wrangler login
 ```
 
-4. Create the D1 database:
-```bash
-wrangler d1 create blt_zero
-```
-
-5. Create `.dev.vars` file from `.dev.vars.example` and populate wrangler.toml with Database ID from previous step:
-
-6. Apply database migrations:
-```bash
-# For local development
-wrangler d1 migrations apply blt_zero --local
-
-# For production (remote database)
-wrangler d1 migrations apply blt_zero --remote
-```
+4. Create `.dev.vars` file from `.dev.vars.example` and populate wrangler.toml with Database ID from previous step:
 
 ### Development
 
