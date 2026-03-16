@@ -1,10 +1,9 @@
 """Tests for Phase 2 ECDH key-wrapping: org_decrypt password package handling
-and the SSRF-protection helper in main.py.
+and the SSRF-protection helper in security.py.
 """
 
 import base64
 import os
-import re
 import sys
 
 import pytest
@@ -17,6 +16,7 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 
 from tools.org_decrypt import _ecdh_decrypt
+from src.services.security import is_private_host
 
 
 # -----------------------------------------------------------------------
@@ -107,27 +107,8 @@ def test_password_package_tampered_ciphertext_raises():
 
 
 # -----------------------------------------------------------------------
-# SSRF protection helper (_is_private_host extracted for unit testing)
+# SSRF protection — tests against the canonical helper in security.py
 # -----------------------------------------------------------------------
-
-_PRIVATE_HOST_RE = re.compile(
-    r"^(localhost"
-    r"|127\."
-    r"|10\."
-    r"|172\.(1[6-9]|2[0-9]|3[01])\."
-    r"|192\.168\."
-    r"|169\.254\."
-    r"|0\."
-    r"|::1"
-    r"|fc[0-9a-f]{2}:"
-    r"|fd[0-9a-f]{2}:)",
-    re.IGNORECASE,
-)
-
-
-def _is_private_host(host: str) -> bool:
-    return bool(_PRIVATE_HOST_RE.match(host))
-
 
 @pytest.mark.parametrize("host", [
     "localhost",
@@ -140,9 +121,10 @@ def _is_private_host(host: str) -> bool:
     "169.254.169.254",   # AWS/Azure metadata endpoint
     "0.0.0.0",
     "::1",
+    "fe80::1",           # IPv6 link-local
 ])
 def test_private_host_is_blocked(host):
-    assert _is_private_host(host) is True
+    assert is_private_host(host) is True
 
 
 @pytest.mark.parametrize("host", [
@@ -155,4 +137,4 @@ def test_private_host_is_blocked(host):
     "100.64.0.1",     # Carrier-grade NAT — not in private ranges we block
 ])
 def test_public_host_is_allowed(host):
-    assert _is_private_host(host) is False
+    assert is_private_host(host) is False

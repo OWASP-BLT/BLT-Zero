@@ -8,6 +8,7 @@ from js import URL, fetch as js_fetch
 
 from services.templates import submit_page
 from services.email import send_email
+from services.security import is_private_host
 
 
 # ----------------------------
@@ -65,25 +66,6 @@ def day_bucket_iso(dt: datetime) -> str:
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
-# Reject private / loopback hosts to prevent SSRF on the /pubkey endpoint.
-_PRIVATE_HOST_RE = re.compile(
-    r"^(localhost"
-    r"|127\."
-    r"|10\."
-    r"|172\.(1[6-9]|2[0-9]|3[01])\."
-    r"|192\.168\."
-    r"|169\.254\."
-    r"|0\."
-    r"|::1"
-    r"|fc[0-9a-f]{2}:"
-    r"|fd[0-9a-f]{2}:)",
-    re.IGNORECASE,
-)
-
-
-def _is_private_host(host: str) -> bool:
-    return bool(_PRIVATE_HOST_RE.match(host))
-
 
 async def _fetch_org_pubkey(domain: str):
     """Fetch the org ECDH public key from the well-known URL on their domain.
@@ -91,7 +73,7 @@ async def _fetch_org_pubkey(domain: str):
     Returns a validated public JWK dict (private fields stripped) or None.
     No initial contact with BLT-Zero is required — the org self-publishes.
     """
-    if _is_private_host(domain):
+    if is_private_host(domain):
         return None
 
     well_known_url = f"https://{domain}/.well-known/blt-zero/public_key.jwk"
@@ -276,6 +258,19 @@ class Default(WorkerEntrypoint):
                             {"error": f"encrypted_key_package missing field: {_field}"},
                             status=400,
                         )
+                # Validate eph_pub_jwk is a valid EC P-256 public key structure
+                eph_jwk = encrypted_key_package["eph_pub_jwk"]
+                if (
+                    not isinstance(eph_jwk, dict)
+                    or eph_jwk.get("kty") != "EC"
+                    or eph_jwk.get("crv") != "P-256"
+                    or not eph_jwk.get("x")
+                    or not eph_jwk.get("y")
+                ):
+                    return Response.json(
+                        {"error": "encrypted_key_package.eph_pub_jwk must be a P-256 EC public key"},
+                        status=400,
+                    )
 
             try:
                 url_host = urlparse(url_val).netloc.lower()

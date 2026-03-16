@@ -153,7 +153,12 @@
   // Compatible with tools/org_decrypt.py (ECDH + HKDF-SHA256 + AES-256-GCM).
   // -----------------------------------------------------------------------
   function b64FromBytes(bytes) {
-    return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+    const arr = new Uint8Array(bytes);
+    let binary = "";
+    for (let i = 0; i < arr.length; i++) {
+      binary += String.fromCharCode(arr[i]);
+    }
+    return btoa(binary);
   }
 
   async function ecdhWrapPassword(orgPubJwk, password) {
