@@ -1,6 +1,6 @@
 import base64
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 from workers import WorkerEntrypoint, Response
 from js import URL
@@ -89,7 +89,7 @@ def _limit_exceeded(current: int, limit: int) -> bool:
 
 
 def _check_rate_limits(env, ip: str, org_email: str, url_host: str):
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     b_min, b_hr, b_day = (
         minute_bucket_iso(now),
         hour_bucket_iso(now),
