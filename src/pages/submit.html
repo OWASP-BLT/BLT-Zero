@@ -51,9 +51,11 @@
         <div class="flex flex-wrap gap-2 mb-4">
           <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium bg-gray-50 dark:bg-dark-base">Client-Side ZIP</span>
           <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium bg-gray-50 dark:bg-dark-base">Direct Email Delivery</span>
+          <span id="keyWrapBadge" class="hidden inline-block rounded-full border border-green-300 dark:border-green-700 px-3 py-1 text-xs font-medium bg-green-50 dark:bg-green-900/30 text-green-800 dark:text-green-300">🔑 ECDH Key-Wrapped</span>
+          <span id="plaintextBadge" class="hidden inline-block rounded-full border border-yellow-300 dark:border-yellow-700 px-3 py-1 text-xs font-medium bg-yellow-50 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300">⚠️ Password in Email</span>
         </div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-          The email body will explicitly include the decryption password generated during this phase.
+        <p id="securityNote" class="text-sm text-gray-600 dark:text-gray-400 mb-3">
+          Enter the organization email to check whether ECDH key-wrapping is available for that domain.
         </p>
         <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
           <li>• Max screenshots: <strong id="limitFiles" class="text-gray-900 dark:text-white">{{MAX_FILES}}</strong></li>
@@ -144,14 +146,92 @@
   </script>
 
   <script>
-  // Wait for the HTML to fully load before attaching events
+  // -----------------------------------------------------------------------
+  // ECDH key-wrapping (Phase 2)
+  // Wraps the ZIP password with the org's ECDH P-256 public key so the
+  // Worker never sees the plaintext password.
+  // Compatible with tools/org_decrypt.py (ECDH + HKDF-SHA256 + AES-256-GCM).
+  // -----------------------------------------------------------------------
+  function b64FromBytes(bytes) {
+    return btoa(String.fromCharCode(...new Uint8Array(bytes)));
+  }
+
+  async function ecdhWrapPassword(orgPubJwk, password) {
+    const subtle = crypto.subtle;
+
+    // Import org's static public key
+    const orgPubKey = await subtle.importKey(
+      "jwk",
+      orgPubJwk,
+      { name: "ECDH", namedCurve: "P-256" },
+      false,
+      []
+    );
+
+    // Generate ephemeral key pair
+    const ephKeyPair = await subtle.generateKey(
+      { name: "ECDH", namedCurve: "P-256" },
+      true,
+      ["deriveBits"]
+    );
+
+    // ECDH shared secret (x-coordinate of shared point, 32 bytes)
+    const sharedBits = await subtle.deriveBits(
+      { name: "ECDH", public: orgPubKey },
+      ephKeyPair.privateKey,
+      256
+    );
+
+    // HKDF: derive 256-bit AES key from shared secret
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const hkdfKey = await subtle.importKey("raw", sharedBits, "HKDF", false, ["deriveKey"]);
+    const aesKey = await subtle.deriveKey(
+      {
+        name: "HKDF",
+        hash: "SHA-256",
+        salt: salt,
+        info: new TextEncoder().encode("blt-zero-v1"),
+      },
+      hkdfKey,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt"]
+    );
+
+    // AES-256-GCM encrypt the password
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await subtle.encrypt(
+      { name: "AES-GCM", iv: iv },
+      aesKey,
+      new TextEncoder().encode(password)
+    );
+
+    // Export ephemeral public key as JWK
+    const ephPubJwk = await subtle.exportKey("jwk", ephKeyPair.publicKey);
+
+    return {
+      type: "password_package",
+      version: "1",
+      eph_pub_jwk: ephPubJwk,
+      salt_b64: b64FromBytes(salt),
+      iv_b64: b64FromBytes(iv),
+      ciphertext_b64: b64FromBytes(ciphertext),
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Form logic
+  // -----------------------------------------------------------------------
   document.addEventListener("DOMContentLoaded", () => {
     
-    // Define all the missing variables!
     const form = document.getElementById("reportForm");
     const btn = document.getElementById("btn");
     const msgContainer = document.getElementById("msgContainer");
     const msg = document.getElementById("msg");
+    const orgEmailInput = document.getElementById("org_email");
+    const keyWrapBadge = document.getElementById("keyWrapBadge");
+    const plaintextBadge = document.getElementById("plaintextBadge");
+    const securityNote = document.getElementById("securityNote");
 
     // UI Helper Functions
     function showErr(text) {
@@ -166,10 +246,52 @@
       msg.textContent = text;
     }
 
+    // Probe org's domain for a published public key and update the UI badge.
+    let _pubKeyCache = {};
+    async function probeOrgPubKey(email) {
+      if (!email || !email.includes("@")) return null;
+      if (email in _pubKeyCache) return _pubKeyCache[email];
+      try {
+        const res = await fetch(`/pubkey?email=${encodeURIComponent(email)}`);
+        const jwk = res.ok ? await res.json() : null;
+        _pubKeyCache[email] = jwk;
+        return jwk;
+      } catch (_) {
+        _pubKeyCache[email] = null;
+        return null;
+      }
+    }
+
+    function updateSecurityBadge(orgPubJwk) {
+      if (orgPubJwk) {
+        keyWrapBadge.classList.remove("hidden");
+        plaintextBadge.classList.add("hidden");
+        securityNote.textContent =
+          "✅ ECDH public key found for this domain. The ZIP password will be " +
+          "wrapped with the org's key — the server never sees it in plaintext.";
+      } else {
+        keyWrapBadge.classList.add("hidden");
+        plaintextBadge.classList.remove("hidden");
+        securityNote.textContent =
+          "⚠️ No ECDH public key found for this domain. The decryption password " +
+          "will be included in the email in plaintext (Phase 1 fallback). " +
+          "Ask the org to publish their key at " +
+          "https://{domain}/.well-known/blt-zero/public_key.jwk to upgrade.";
+      }
+    }
+
+    // Probe when the email field loses focus
+    orgEmailInput.addEventListener("blur", async () => {
+      const email = orgEmailInput.value.trim();
+      if (email) {
+        const jwk = await probeOrgPubKey(email);
+        updateSecurityBadge(jwk);
+      }
+    });
+
     form.addEventListener("submit", async (e) => {
-      e.preventDefault(); // Stop the page reload!
+      e.preventDefault();
       
-      // Safety check: ensure the zip library finished loading
       if (!window.zip) {
         showErr("Encryption library is still loading, please wait a second and try again.");
         return;
@@ -180,8 +302,7 @@
       msgContainer.classList.add("hidden");
       
       try {
-        // Actually grab the values from the form inputs
-        const org_email = document.getElementById("org_email").value.trim();
+        const org_email = orgEmailInput.value.trim();
         const url = document.getElementById("url").value.trim();
         const description = document.getElementById("description").value.trim();
         const markdown = document.getElementById("markdown").value.trim();
@@ -197,7 +318,7 @@
           throw new Error(`Total upload size exceeds ${maxTotalBytes} bytes.`);
         }
 
-        // 1. Generate a strong random password in the browser (24 chars)
+        // 1. Generate a strong random password in the browser (48 hex chars = 24 bytes)
         const passwordBytes = new Uint8Array(24);
         crypto.getRandomValues(passwordBytes);
         const password = Array.from(
@@ -209,35 +330,46 @@
         const zipFileWriter = new window.zip.BlobWriter();
         const zipWriter = new window.zip.ZipWriter(zipFileWriter, { password: password });
         
-        // Bundle the text report into a JSON file inside the ZIP
         const reportJsonStr = JSON.stringify({
             org_email, url, description, markdown, submitted_at: new Date().toISOString()
         }, null, 2);
         await zipWriter.add("report.json", new window.zip.TextReader(reportJsonStr));
 
-        // Add the image files to the ZIP
         for (const f of files) {
           await zipWriter.add(`screenshots/${f.name}`, new window.zip.BlobReader(f));
         }
         
         const zipBlob = await zipWriter.close();
         
-        // 3. Convert ZIP to Base64 to send to your Worker
-        btn.textContent = "Submitting to server...";
+        // 3. Convert ZIP to Base64
+        btn.textContent = "Wrapping key...";
         const reader = new FileReader();
         const b64 = await new Promise(resolve => {
           reader.onloadend = () => resolve(reader.result.split(',')[1]);
           reader.readAsDataURL(zipBlob);
         });
 
-        // 4. Send payload to Worker
-        const payload = { 
-          org_email, 
+        // 4. Attempt ECDH key-wrapping (Phase 2).
+        //    If the org has no published public key, fall back to Phase 1.
+        const orgPubJwk = await probeOrgPubKey(org_email);
+        updateSecurityBadge(orgPubJwk);
+
+        const payload = {
+          org_email,
           report: { url, description, markdown },
           zip_content_b64: b64,
-          password: password
         };
 
+        if (orgPubJwk) {
+          btn.textContent = "Wrapping key with ECDH...";
+          payload.encrypted_key_package = await ecdhWrapPassword(orgPubJwk, password);
+        } else {
+          // Phase 1 fallback: send plaintext password
+          payload.password = password;
+        }
+
+        // 5. Send payload to Worker
+        btn.textContent = "Submitting to server...";
         const res = await fetch("/submit", {
           method: "POST",
           headers: { "content-type": "application/json" },
@@ -247,8 +379,15 @@
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Server rejected submission");
         
-        showOk(`Success! Report encrypted and sent.\nArtifact Hash: ${data.artifact_hash}`);
+        const modeLabel = data.delivery_mode === "ecdh_wrapped"
+          ? "🔑 ECDH key-wrapped (password never left your browser in plaintext)"
+          : "⚠️ Phase 1 — password included in email";
+
+        showOk(`Success! Report encrypted and sent.\nArtifact Hash: ${data.artifact_hash}\nDelivery: ${modeLabel}`);
         form.reset();
+        keyWrapBadge.classList.add("hidden");
+        plaintextBadge.classList.add("hidden");
+        securityNote.textContent = "Enter the organization email to check whether ECDH key-wrapping is available for that domain.";
 
       } catch (err) {
         showErr(err.message);

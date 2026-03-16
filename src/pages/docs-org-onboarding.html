@@ -19,7 +19,7 @@
           </li>
           <li class="flex gap-3">
             <span class="font-semibold text-gray-900 dark:text-gray-50">2.</span>
-            <span>Upload public key to BLT-Zero via the admin onboarding page</span>
+            <span>Publish the public key at a well-known URL on your domain — <strong>no contact with BLT-Zero required</strong></span>
           </li>
           <li class="flex gap-3">
             <span class="font-semibold text-gray-900 dark:text-gray-50">3.</span>
@@ -33,6 +33,36 @@
         <p class="text-sm font-medium text-accent-foreground">
           <strong>Important:</strong> Your private key never leaves your infrastructure. 
           Only you can decrypt the vulnerability reports.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- Key Discovery (Well-Known URL) -->
+    <div class="rounded-lg border bg-white dark:bg-dark-surface p-8 space-y-6 mb-8">
+      
+      <div>
+        <h2 class="text-xl font-semibold mb-2">Self-Service Key Publishing (Recommended)</h2>
+        <p class="text-gray-600 dark:text-gray-400 mb-4">
+          BLT-Zero automatically discovers your public key from a predictable URL on your domain.
+          No registration or contact with BLT-Zero is required.
+        </p>
+      </div>
+
+      <div class="rounded-lg bg-gray-100 dark:bg-gray-800 p-4">
+        <h3 class="text-sm font-semibold mb-2">Well-Known URL</h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+          If your security contact is <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">security@example.com</code>, host your public key at:
+        </p>
+        <pre class="font-mono text-sm text-gray-600 dark:text-gray-400 overflow-x-auto">https://example.com/.well-known/blt-zero/public_key.jwk</pre>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">
+          The file must be served over HTTPS with <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">Content-Type: application/json</code>.
+        </p>
+      </div>
+
+      <div class="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-4">
+        <p class="text-sm text-green-800 dark:text-green-300">
+          <strong>🔑 When your key is published:</strong> The browser ECDH-wraps the ZIP password with your public key before sending anything to the server. The BLT-Zero Worker never sees the plaintext password. Only your private key can recover it.
         </p>
       </div>
 
@@ -55,14 +85,17 @@
         <div class="rounded-lg bg-gray-100 dark:bg-gray-800 p-4">
           <h3 class="text-sm font-semibold mb-2">1. Generate Keypair</h3>
           <pre class="font-mono text-sm text-gray-600 dark:text-gray-400 overflow-x-auto">python tools/org_keygen.py</pre>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Generates <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">private_key.jwk</code> and displays public key for upload.</p>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Generates <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">private_key.jwk</code> (keep secret) and <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">public_key.jwk</code> (publish at well-known URL).</p>
         </div>
 
-        <!-- Decryption -->
+        <!-- Decryption (password package) -->
         <div class="rounded-lg bg-gray-100 dark:bg-gray-800 p-4">
-          <h3 class="text-sm font-semibold mb-2">2. Decrypt Reports</h3>
-          <pre class="font-mono text-sm text-gray-600 dark:text-gray-400 overflow-x-auto">python tools/org_decrypt.py private_key.jwk package.json</pre>
-          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Decrypts the encrypted package and outputs <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">report.json</code>.</p>
+          <h3 class="text-sm font-semibold mb-2">2. Recover ZIP Password (Phase 2)</h3>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
+            Copy the JSON block from the received email and save it as <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">blt-zero-key.json</code>, then run:
+          </p>
+          <pre class="font-mono text-sm text-gray-600 dark:text-gray-400 overflow-x-auto">python tools/org_decrypt.py private_key.jwk blt-zero-key.json</pre>
+          <p class="text-sm text-gray-600 dark:text-gray-400 mt-2">Prints the recovered ZIP password. Use it to open the attached <code class="px-1 py-0.5 rounded bg-gray-50 dark:bg-dark-base text-xs">.zip</code> file.</p>
         </div>
 
       </div>
@@ -75,13 +108,6 @@
       <h2 class="text-xl font-semibold mb-3">Quick Links</h2>
       
       <div class="space-y-2">
-        <div class="flex items-center gap-3">
-          <span class="text-primary">→</span>
-          <a href="{{APP_ORIGIN}}/admin/onboard" class="text-gray-900 dark:text-gray-50 hover:text-primary transition-colors font-mono text-sm">
-            {{APP_ORIGIN}}/admin/onboard
-          </a>
-          <span class="text-xs text-gray-600 dark:text-gray-400">(Admin onboarding page)</span>
-        </div>
         <div class="flex items-center gap-3">
           <span class="text-primary">→</span>
           <a href="{{APP_ORIGIN}}/docs/decrypt" class="text-gray-900 dark:text-gray-50 hover:text-primary transition-colors font-mono text-sm">
@@ -98,14 +124,6 @@
         </div>
       </div>
 
-    </div>
-
-    <!-- CTA -->
-    <div class="mt-8 text-center">
-      <a href="/admin/onboard" class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors font-semibold">
-        Go to Admin Onboarding
-        <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-      </a>
     </div>
 
   </div>

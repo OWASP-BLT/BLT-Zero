@@ -1,9 +1,10 @@
 import base64
+import json
 import re
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 from workers import WorkerEntrypoint, Response
-from js import URL
+from js import URL, fetch as js_fetch
 
 from services.templates import submit_page
 from services.email import send_email
@@ -63,6 +64,53 @@ def day_bucket_iso(dt: datetime) -> str:
 
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+# Reject private / loopback hosts to prevent SSRF on the /pubkey endpoint.
+_PRIVATE_HOST_RE = re.compile(
+    r"^(localhost"
+    r"|127\."
+    r"|10\."
+    r"|172\.(1[6-9]|2[0-9]|3[01])\."
+    r"|192\.168\."
+    r"|169\.254\."
+    r"|0\."
+    r"|::1"
+    r"|fc[0-9a-f]{2}:"
+    r"|fd[0-9a-f]{2}:)",
+    re.IGNORECASE,
+)
+
+
+def _is_private_host(host: str) -> bool:
+    return bool(_PRIVATE_HOST_RE.match(host))
+
+
+async def _fetch_org_pubkey(domain: str):
+    """Fetch the org ECDH public key from the well-known URL on their domain.
+
+    Returns a validated public JWK dict (private fields stripped) or None.
+    No initial contact with BLT-Zero is required — the org self-publishes.
+    """
+    if _is_private_host(domain):
+        return None
+
+    well_known_url = f"https://{domain}/.well-known/blt-zero/public_key.jwk"
+    try:
+        r = await js_fetch(well_known_url, method="GET")
+        if not r.ok:
+            return None
+        text = await r.text()
+        jwk = json.loads(text)
+        if not isinstance(jwk, dict):
+            return None
+        # Must be an EC P-256 public key
+        if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256":
+            return None
+        # Strip any accidentally included private fields
+        jwk.pop("d", None)
+        return jwk
+    except Exception:
+        return None
 
 # ----------------------------
 # In-memory rate limiting
@@ -157,6 +205,19 @@ class Default(WorkerEntrypoint):
                     {"error": f"Failed to load UI template: {e}"}, status=500
                 )
 
+        # Public-key discovery proxy (avoids CORS for the browser fetch)
+        # GET /pubkey?email=security@example.com
+        # Fetches https://example.com/.well-known/blt-zero/public_key.jwk
+        if request.method == "GET" and url.pathname == "/pubkey":
+            email_param = (url.searchParams.get("email") or "").strip()
+            if not email_param or not EMAIL_RE.match(email_param):
+                return Response.json({"error": "valid email required"}, status=400)
+            domain = email_param.split("@")[-1].lower()
+            jwk = await _fetch_org_pubkey(domain)
+            if jwk is None:
+                return Response.json({"error": "no public key found for this domain"}, status=404)
+            return Response.json(jwk)
+
         # ZIP-only submission
         if request.method == "POST" and url.pathname == "/submit":
             ip = get_client_ip(request)
@@ -177,6 +238,7 @@ class Default(WorkerEntrypoint):
             # Extract the new payload fields
             zip_b64 = payload.get("zip_content_b64")
             password = payload.get("password")
+            encrypted_key_package = payload.get("encrypted_key_package")
 
             if not org_email or not EMAIL_RE.match(org_email):
                 return Response.json({"error": "valid org_email required"}, status=400)
@@ -190,10 +252,30 @@ class Default(WorkerEntrypoint):
                     {"error": "url and description required"}, status=400
                 )
 
-            if not zip_b64 or not password:
+            if not zip_b64:
                 return Response.json(
-                    {"error": "missing encrypted zip payload or password"}, status=400
+                    {"error": "missing encrypted zip payload"}, status=400
                 )
+
+            # Require either an ECDH-wrapped key package (preferred) or a plaintext
+            # password (Phase 1 fallback).  Reject requests that provide neither.
+            if not encrypted_key_package and not password:
+                return Response.json(
+                    {"error": "missing encrypted_key_package or password"}, status=400
+                )
+
+            # Validate encrypted_key_package structure when present
+            if encrypted_key_package is not None:
+                if not isinstance(encrypted_key_package, dict):
+                    return Response.json(
+                        {"error": "encrypted_key_package must be an object"}, status=400
+                    )
+                for _field in ("eph_pub_jwk", "salt_b64", "iv_b64", "ciphertext_b64"):
+                    if _field not in encrypted_key_package:
+                        return Response.json(
+                            {"error": f"encrypted_key_package missing field: {_field}"},
+                            status=400,
+                        )
 
             try:
                 url_host = urlparse(url_val).netloc.lower()
@@ -230,17 +312,46 @@ class Default(WorkerEntrypoint):
                 "aes256": "ZIP encryption: AES‑256 (Client-Side).",
                 "none": "WARNING: Runtime lacks ZIP encryption; sending UNENCRYPTED ZIP. Handle with extreme care.",
             }
-            body_lines = [
-                f"Recipient: {org_email}",
-                f"Target URL: {url_val}",
-                "",
-                "Attached is the report as a single ZIP archive.",
-                f"Password (store safely): {password}",
-                "",
-                disclaimers.get(enc_used, "ZIP encryption: unknown"),
-                "",
-                f"Artifact SHA-256: {artifact_hash}",
-            ]
+
+            if encrypted_key_package:
+                # Phase 2: password was ECDH-wrapped in the browser; Worker never saw it.
+                key_pkg_json = json.dumps(encrypted_key_package, indent=2)
+                body_lines = [
+                    f"Recipient: {org_email}",
+                    f"Target URL: {url_val}",
+                    "",
+                    "Attached is the report as a single AES-256 encrypted ZIP archive.",
+                    "The ZIP password has been ECDH-wrapped with your public key.",
+                    "The BLT-Zero worker never had access to the plaintext password.",
+                    "",
+                    "=== ECDH Encrypted Password Package ===",
+                    "Save the JSON below to blt-zero-key.json and run:",
+                    "  python tools/org_decrypt.py private_key.jwk blt-zero-key.json",
+                    "",
+                    key_pkg_json,
+                    "",
+                    "========================================",
+                    "",
+                    disclaimers.get(enc_used, "ZIP encryption: unknown"),
+                    "",
+                    f"Artifact SHA-256: {artifact_hash}",
+                ]
+                delivery_mode = "ecdh_wrapped"
+            else:
+                # Phase 1 fallback: password included in plaintext.
+                body_lines = [
+                    f"Recipient: {org_email}",
+                    f"Target URL: {url_val}",
+                    "",
+                    "Attached is the report as a single ZIP archive.",
+                    f"Password (store safely): {password}",
+                    "",
+                    disclaimers.get(enc_used, "ZIP encryption: unknown"),
+                    "",
+                    f"Artifact SHA-256: {artifact_hash}",
+                ]
+                delivery_mode = "plaintext_password"
+
             body = "\n".join(body_lines)
 
             try:
@@ -263,6 +374,7 @@ class Default(WorkerEntrypoint):
                     "ok": True,
                     "artifact_hash": artifact_hash,
                     "encryption_used": enc_used,
+                    "delivery_mode": delivery_mode,
                 }
             )
 
