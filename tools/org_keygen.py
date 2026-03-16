@@ -1,7 +1,5 @@
 import json
-import os
 from cryptography.hazmat.primitives.asymmetric import ec
-from cryptography.hazmat.primitives import serialization
 import base64
 
 def b64url(b: bytes) -> str:

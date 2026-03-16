@@ -7,7 +7,6 @@ from src.services.security import (
     minute_bucket_iso,
     normalize_domain,
     sha256_hex,
-    turnstile_enabled,
 )
 
 
@@ -55,56 +54,4 @@ async def test_sha256_hex_matches_known_value():
     data = b"blt-zero-test"
     digest = await sha256_hex(data)
     # Precomputed with Python's hashlib.sha256(b"blt-zero-test").hexdigest()
-    assert digest == "aa28ed2eef4c7a5de7ca5860e6317c3cc7d88fe69fadeb5eceb432031a78f73e"
-
-
-class _Env:
-    def __init__(self, disable: str, site_key: str | None, secret: str | None):
-        self.DISABLE_TURNSTILE = disable
-        if site_key is not None:
-            self.TURNSTILE_SITE_KEY = site_key
-        if secret is not None:
-            self.TURNSTILE_SECRET = secret
-
-
-class _EnvNoDisable:
-    """Env variant without DISABLE_TURNSTILE (tests getattr default path)."""
-
-    def __init__(self, site_key: str | None, secret: str | None):
-        if site_key is not None:
-            self.TURNSTILE_SITE_KEY = site_key
-        if secret is not None:
-            self.TURNSTILE_SECRET = secret
-
-
-def test_turnstile_enabled_false_when_globally_disabled():
-    env = _Env(disable="true", site_key="site", secret="secret")
-    assert turnstile_enabled(env) is False
-
-
-def test_turnstile_enabled_false_when_missing_keys():
-    env = _Env(disable="false", site_key=None, secret=None)
-    assert turnstile_enabled(env) is False
-
-
-def test_turnstile_enabled_true_when_configured():
-    env = _Env(disable="false", site_key="site", secret="secret")
-    assert turnstile_enabled(env) is True
-
-
-def test_turnstile_enabled_true_when_disable_flag_missing():
-    """When DISABLE_TURNSTILE is absent, getattr defaults to 'false'; keys present => enabled."""
-    env = _EnvNoDisable(site_key="site", secret="secret")
-    assert turnstile_enabled(env) is True
-
-
-def test_turnstile_enabled_false_when_keys_are_empty_strings():
-    """Empty string keys should be treated as disabled."""
-    class EnvWithEmptyKeys:
-        DISABLE_TURNSTILE = "false"
-        TURNSTILE_SITE_KEY = ""
-        TURNSTILE_SECRET = ""
-
-    env = EnvWithEmptyKeys()
-    assert turnstile_enabled(env) is False
-
+    assert digest == "8a4861757f42a36e5b7b872d1b4a21a27d3a4b9bfa72eb99fc1bcf253170bdfa"

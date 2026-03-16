@@ -3,7 +3,12 @@ Optional maintainer CLI.
 Requires you to use 'wrangler d1 execute' under the hood (simple + no extra APIs).
 """
 
-import argparse, json, subprocess, shlex, sys, pathlib
+import argparse
+import json
+import subprocess
+import shlex
+import sys
+import pathlib
 
 def run(cmd):
     p = subprocess.run(cmd, shell=True, capture_output=True, text=True)

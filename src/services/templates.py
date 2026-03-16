@@ -17,7 +17,6 @@ def replace_template(template: str, replacements: dict) -> str:
 
 def read_html_file(filename: str) -> str:
     """Read HTML file from pages directory."""
-    import os
     
     # Get the directory where this file is located
     current_dir = Path(__file__).parent
