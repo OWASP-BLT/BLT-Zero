@@ -2,7 +2,7 @@ APP_ORIGIN=http://127.0.0.1:8787
 MAX_UPLOAD_BYTES=3145728
 RATE_LIMIT_PER_MINUTE=20
 
-# Email provider (choose one)
+# Email provider(sendgrid only)
 EMAIL_PROVIDER=sendgrid
 SENDGRID_API_KEY=...
 

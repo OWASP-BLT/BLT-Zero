@@ -64,6 +64,14 @@ def day_bucket_iso(dt: datetime) -> str:
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
+
+# ----------------------------
+# SendGrid Status Helper
+# ----------------------------
+def _sendgrid_status(env):
+    return "OK" if getattr(env, "SENDGRID_API_KEY", None) else "not configured"
+
+
 # ----------------------------
 # In-memory rate limiting
 # ----------------------------
@@ -151,6 +159,8 @@ class Default(WorkerEntrypoint):
                         ),
                     }
                 )
+                status = _sendgrid_status(env)
+                html = html.replace("{{SENDGRID_STATUS}}", status)
                 return html_response(html)
             except Exception as e:
                 return Response.json(
@@ -174,7 +184,8 @@ class Default(WorkerEntrypoint):
             if not isinstance(report, dict):
                 return Response.json({"error": "report must be an object"}, status=400)
 
-            # Extract the new payload fields
+            reporter_email = str(report.get("reporter_email", "")).strip()
+
             zip_b64 = payload.get("zip_content_b64")
             password = payload.get("password")
 
@@ -208,7 +219,6 @@ class Default(WorkerEntrypoint):
             if len(description) + len(markdown) > max_report_chars:
                 return Response.json({"error": "report text too large"}, status=400)
 
-            # Process the pre-encrypted ZIP instead of creating one
             try:
                 zip_bytes = base64.b64decode(zip_b64, validate=True)
             except Exception:
@@ -225,19 +235,14 @@ class Default(WorkerEntrypoint):
             enc_used = "aes256"
             artifact_hash = sha256_hex(zip_bytes)
 
-            subject = f"BLT‑Zero ZIP Report — {artifact_hash[:12]}"
-            disclaimers = {
-                "aes256": "ZIP encryption: AES‑256 (Client-Side).",
-                "none": "WARNING: Runtime lacks ZIP encryption; sending UNENCRYPTED ZIP. Handle with extreme care.",
-            }
+            subject = f"BLT-Zero ZIP Report — {artifact_hash[:12]}"
             body_lines = [
                 f"Recipient: {org_email}",
                 f"Target URL: {url_val}",
+                f"Reporter Email: {reporter_email or 'not provided'}",
                 "",
                 "Attached is the report as a single ZIP archive.",
                 f"Password (store safely): {password}",
-                "",
-                disclaimers.get(enc_used, "ZIP encryption: unknown"),
                 "",
                 f"Artifact SHA-256: {artifact_hash}",
             ]
@@ -266,5 +271,4 @@ class Default(WorkerEntrypoint):
                 }
             )
 
-        # 404
         return Response("Not found", status=404)
