@@ -1,5 +1,4 @@
 import json
-import os
 from datetime import datetime
 from urllib.parse import urlparse, parse_qs
 from workers import WorkerEntrypoint, Response
@@ -25,17 +24,34 @@ from services.templates import (
     onboarding_email_body
 )
 
-MAX_FILES = int(os.getenv("MAX_FILES", "3"))
-MAX_MB = int(os.getenv("MAX_MB", "3"))
+def _to_int(value, default, *, minimum=None):
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    if minimum is not None and parsed < minimum:
+        return default
+    return parsed
 
+# MAX_FILES and MAX_MB are local configuration defaults (not Worker bindings).
+# Only MAX_UPLOAD_BYTES is externally configurable via Worker environment.
+MAX_FILES = 3
+MAX_MB = 3
+RATE_LIMIT_PER_MINUTE = 5
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         """Main fetch handler for the worker."""
         env = self.env
         ctx = self.ctx
-        max_files = int(getattr(env, "MAX_FILES", str(MAX_FILES)))
-        max_upload_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", str(MAX_MB * 1024 * 1024)))
+        # MAX_FILES and MAX_MB are code-level constants; only MAX_UPLOAD_BYTES
+        # is externally configurable from environment bindings.
+        max_files = MAX_FILES
+        max_upload_bytes = _to_int(
+            getattr(env, "MAX_UPLOAD_BYTES", None),
+            MAX_MB * 1024 * 1024,
+            minimum=1,
+        )
         
         url = URL.new(request.url)
         ts_enabled = turnstile_enabled(env)
@@ -77,7 +93,7 @@ class Default(WorkerEntrypoint):
             
             try:
                 payload = await request.json()
-            except:
+            except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
             
             token = str(payload.get("admin_token", ""))
@@ -114,7 +130,7 @@ class Default(WorkerEntrypoint):
                 jwk = json.loads(public_key_jwk)
                 if jwk.get("kty") != "EC" or jwk.get("crv") != "P-256" or not jwk.get("x") or not jwk.get("y"):
                     return Response.json({"error": "public_key_jwk must be EC P-256 JWK"}, status=400)
-            except:
+            except Exception:
                 return Response.json({"error": "public_key_jwk must be valid JSON"}, status=400)
             
             await upsert_domain(env, {
@@ -128,7 +144,7 @@ class Default(WorkerEntrypoint):
             
             email_sent = False
             if send_onboarding_email:
-                subject = f"BLT-Zero Onboarding — {domain}"
+                subject = f"BLT-Zero Onboarding - {domain}"
                 body = onboarding_email_body(env.APP_ORIGIN, domain)
                 await send_email(env, org_email, subject, body)
                 email_sent = True
@@ -162,14 +178,14 @@ class Default(WorkerEntrypoint):
             limit_key = f"ip:{ip}:{bucket}"
             
             count = await rate_limit_hit(env, limit_key, bucket)
-            max_per_min = int(getattr(env, "RATE_LIMIT_PER_MINUTE", "5"))
+            max_per_min = RATE_LIMIT_PER_MINUTE
             
             if count > max_per_min:
                 return Response.json({"error": "rate limit exceeded"}, status=429)
             
             try:
                 payload = await request.json()
-            except:
+            except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
             
             domain = normalize_domain(payload.get("domain", ""))
@@ -221,7 +237,7 @@ class Default(WorkerEntrypoint):
             submission_id = str(js_crypto.randomUUID())
             
             # Email ciphertext package to org
-            subject = f"BLT-Zero Encrypted Report — {domain} — {submission_id}"
+            subject = f"BLT-Zero Encrypted Report - {domain} - {submission_id}"
             body_lines = [
                 f"Encrypted vulnerability report for: {domain}",
                 f"Submission ID: {submission_id}",
@@ -263,3 +279,4 @@ class Default(WorkerEntrypoint):
         
         # 404
         return Response("Not found", status=404)
+
