@@ -304,8 +304,8 @@ document.getElementById("f").addEventListener("submit", async (e)=>{
 
   if (!(screenshotInput instanceof HTMLInputElement) || !screenshotPreview || !screenshotSizeIndicator) return;
 
-  const SCREENSHOT_LIMIT_BYTES = Number(MAX_MB) * 1024 * 1024;
-  const SAFE_UPLOAD_LIMIT_BYTES = Math.floor(SCREENSHOT_LIMIT_BYTES * 0.8);
+  const SCREENSHOT_LIMIT_BYTES = MAX_TOTAL;
+  const SAFE_UPLOAD_LIMIT_BYTES = Math.floor(MAX_TOTAL * 0.8);
   let selectedFiles = [];
   let previewUrls = [];
 

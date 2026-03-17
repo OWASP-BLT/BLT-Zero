@@ -36,7 +36,6 @@ class Default(WorkerEntrypoint):
         ctx = self.ctx
         max_files = int(getattr(env, "MAX_FILES", str(MAX_FILES)))
         max_upload_bytes = int(getattr(env, "MAX_UPLOAD_BYTES", str(MAX_MB * 1024 * 1024)))
-        max_mb = max_upload_bytes // (1024 * 1024)
         
         url = URL.new(request.url)
         ts_enabled = turnstile_enabled(env)
@@ -205,28 +204,15 @@ class Default(WorkerEntrypoint):
                 not encrypted_package.get("eph_pub_jwk")):
                 return Response.json({"error": "invalid encrypted package"}, status=400)
             
-            
-            if screenshot_count is not None:
-                try:
-                    screenshot_count = int(screenshot_count)
-                except:
-                    return Response.json({"error": "invalid screenshot_count"}, status=400)
-                if screenshot_count < 0 or screenshot_count > max_files:
-                    return Response.json({"error": "screenshot count exceeds limit"}, status=400)
-            
-            if screenshot_total_size is not None:
-                try:
-                    screenshot_total_size = int(screenshot_total_size)
-                except:
-                    return Response.json({"error": "invalid screenshot_total_size"}, status=400)
-                if screenshot_total_size < 0 or screenshot_total_size > (max_mb * 1024 * 1024):
-                    return Response.json({"error": "screenshot total size exceeds limit"}, status=400)
+            # Client-provided screenshot metadata is non-trusted and can be spoofed.
+            # Keep it for observability/debugging only; never use it for security decisions.
+            _client_reported_screenshot_count = screenshot_count
+            _client_reported_screenshot_total_size = screenshot_total_size
             
             pkg_json = json.dumps(encrypted_package)
             pkg_bytes = pkg_json.encode('utf-8')
-            max_bytes = max_upload_bytes
             
-            if len(pkg_bytes) > max_bytes:
+            if len(pkg_bytes) > max_upload_bytes:
                 return Response.json({"error": "encrypted package too large"}, status=413)
             
             artifact_hash = await sha256_hex(pkg_bytes)
