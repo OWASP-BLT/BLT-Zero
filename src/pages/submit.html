@@ -1,67 +1,3 @@
-<!doctype html>
-<html lang="en" class="dark">
-<head>
-  <meta charset="utf-8"/>
-  <title>BLT-Zero — Submit Encrypted Report</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1"/>
-  
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>
-    tailwind.config = {
-      darkMode: 'class',
-      theme: {
-        extend: {
-          colors: {
-            primary: '#dc2626',
-            'dark-base': '#0f172a',
-            'dark-surface': '#1e293b',
-          }
-        }
-      }
-    }
-  </script>
-</head>
-
-<body class="bg-gray-50 text-gray-900 dark:bg-dark-base dark:text-gray-100 min-h-screen">
-
-<section class="px-6 py-12">
-  <div class="mx-auto max-w-3xl">
-
-    <h1 class="text-3xl font-bold mb-6 text-center">
-      Submit Encrypted Report
-    </h1>
-
-    <form id="reportForm" class="space-y-4">
-
-      <input id="org_email" type="email" required placeholder="security@example.com"
-        class="w-full px-4 py-2 rounded border"/>
-
-      <input id="url" type="url" required placeholder="https://target.com"
-        class="w-full px-4 py-2 rounded border"/>
-
-      <textarea id="description" rows="4" required placeholder="Describe the issue"
-        class="w-full px-4 py-2 rounded border"></textarea>
-
-      <textarea id="markdown" rows="6" placeholder="Optional markdown"
-        class="w-full px-4 py-2 rounded border"></textarea>
-
-      <!-- Screenshots -->
-      <div>
-        <input type="file" id="shots" multiple accept="image/*"/>
-        <div id="preview"></div>
-        <p id="sizeText" class="text-sm mt-2"></p>
-      </div>
-
-      <button id="btn" class="px-6 py-2 bg-red-600 text-white rounded">
-        Encrypt & Submit
-      </button>
-
-      <pre id="msg" class="text-sm mt-4"></pre>
-
-    </form>
-  </div>
-</section>
-
 <script>
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -71,6 +7,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const input = document.getElementById("shots");
   const preview = document.getElementById("preview");
   const sizeText = document.getElementById("sizeText");
+
+  const MAX_TOTAL_BYTES = {{maxTotalBytes}};
+  const MAX_FILES_ALLOWED = {{maxFiles}};
 
   let files = [];
 
@@ -82,38 +21,54 @@ document.addEventListener("DOMContentLoaded", () => {
       total += f.size;
 
       const div = document.createElement("div");
-      div.innerHTML = `
-        <p>${f.name} (${(f.size/1024/1024).toFixed(2)} MB)</p>
-        <button type="button" data-i="${i}">Remove</button>
-      `;
+
+      const p = document.createElement("p");
+      p.textContent = `${f.name} (${(f.size / 1024 / 1024).toFixed(2)} MB)`;
+
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = "Remove";
+      btn.dataset.i = i;
+
+      div.appendChild(p);
+      div.appendChild(btn);
       preview.appendChild(div);
     });
 
-    sizeText.textContent = `Total: ${(total/1024/1024).toFixed(2)} MB`;
+    sizeText.textContent = `Total: ${(total / 1024 / 1024).toFixed(2)} MB`;
   }
 
-  input.addEventListener("change", e => {
-  const newFiles = Array.from(e.target.files);
-
-  newFiles.forEach(f => {
-    if (!f.type.startsWith("image/")) return;
-
-    if (files.length >= 3) {
-      alert("Maximum 3 screenshots allowed");
-      return;
+  preview.addEventListener("click", (e) => {
+    const index = e.target.dataset.i;
+    if (index !== undefined) {
+      files.splice(Number(index), 1);
+      updatePreview();
     }
-
-    const total = files.reduce((s, file) => s + file.size, 0);
-    if (total + f.size > 3 * 1024 * 1024) {
-      alert("Total screenshot size cannot exceed 3MB");
-      return;
-    }
-
-    files.push(f);
   });
 
-  updatePreview();
-});
+  input.addEventListener("change", e => {
+    const newFiles = Array.from(e.target.files);
+
+    newFiles.forEach(f => {
+      if (!f.type.startsWith("image/")) return;
+
+      if (files.length >= MAX_FILES_ALLOWED) {
+        alert(`Maximum ${MAX_FILES_ALLOWED} screenshots allowed`);
+        return;
+      }
+
+      const total = files.reduce((s, file) => s + file.size, 0);
+
+      if (total + f.size > MAX_TOTAL_BYTES) {
+        alert("Total screenshot size limit exceeded");
+        return;
+      }
+
+      files.push(f);
+    });
+
+    updatePreview();
+  });
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -133,15 +88,16 @@ document.addEventListener("DOMContentLoaded", () => {
       } catch {
         throw new Error("Invalid URL");
       }
-      
-              if (files.length > 3) {
-          throw new Error("Maximum 3 screenshots allowed");
-        }
 
-        const totalSize = files.reduce((s,f)=>s+f.size,0);
-        if (totalSize > 3 * 1024 * 1024) {
-          throw new Error("Total screenshot size exceeds 3MB");
-        }
+      if (files.length > MAX_FILES_ALLOWED) {
+        throw new Error(`Maximum ${MAX_FILES_ALLOWED} screenshots allowed`);
+      }
+
+      const totalSize = files.reduce((s,f)=>s+f.size,0);
+      if (totalSize > MAX_TOTAL_BYTES) {
+        throw new Error("Total screenshot size exceeded");
+      }
+
       const payload = {
         domain,
         encrypted_package: {
@@ -156,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
           salt_b64: "dummy_salt",
           eph_pub_jwk: { kty: "EC" }
         },
+        // informational only (not enforced server-side)
         screenshot_count: files.length,
         screenshot_total_size: files.reduce((s,f)=>s+f.size,0)
       };
@@ -184,6 +141,3 @@ document.addEventListener("DOMContentLoaded", () => {
 
 });
 </script>
-
-</body>
-</html>
