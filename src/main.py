@@ -97,17 +97,19 @@ class Default(WorkerEntrypoint):
 
             if not token:
                 return Response.json({"error": "admin_token required"}, status=400)
-            if ts_enabled and not turnstile_token:
-                return Response.json({"error": "turnstile_token required"}, status=400)
+
+            if ts_enabled:
+                if not turnstile_token:
+                    return Response.json({"error": "turnstile_token required"}, status=400)
+
+                ok = await verify_turnstile(env, turnstile_token, ip)
+                if not ok:
+                    return Response.json({"error": "turnstile failed"}, status=403)
 
             admin_token = getattr(env, "ADMIN_TOKEN", None)
             if not admin_token or token != admin_token:
                 return Response.json({"error": "unauthorized"}, status=401)
 
-            ok = await verify_turnstile(env, turnstile_token, ip)
-            if not ok:
-                return Response.json({"error": "turnstile failed"}, status=403)
-            
             domain = normalize_domain(payload.get("domain", ""))
             org_email = str(payload.get("org_email", "")).strip()
             key_id = str(payload.get("key_id", "")).strip()
@@ -182,6 +184,7 @@ class Default(WorkerEntrypoint):
 
             pkg_json = json.dumps(encrypted_package)
             pkg_bytes = pkg_json.encode("utf-8")
+
             if len(pkg_bytes) > max_upload_bytes:
                 return Response.json({"error": "too large"}, status=413)
 
