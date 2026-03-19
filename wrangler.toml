@@ -13,19 +13,21 @@ directory = "./static"
 
 [vars]
 APP_ORIGIN = "https://zero.owaspblt.org"
-MAIN_BLT_API_URL = "https://api.owaspblt.org" # Base URL for optional BLT points/BACON sync
+MAIN_BLT_API_URL = "https://api.owaspblt.org" # Base URL for BLT points/BACON sync
 POINTS_AWARD = "3" # Default points awarded per successful encrypted submission (used by BLT API)
-MAX_UPLOAD_BYTES = "3145728" # 3 MiB encrypted package cap
-RATE_LIMIT_PER_MINUTE = "5"
 
-EMAIL_PROVIDER = "mailchannels" # or "sendgrid"
-DISABLE_TURNSTILE = "true"
-TURNSTILE_SITE_KEY = "REPLACE_ME"
+# ZIP submission constraints
+ZIP_MAX_TOTAL_BYTES = "5242880"
+ZIP_MAX_FILES = "5"
+MAX_REPORT_CHARS = "20000"
 
-# Admin onboarding page protection (set as secrets ideally)
-# ADMIN_TOKEN: long random string; used for /admin/onboard POST auth
+# In-memory rate limits (per Cloudflare isolate)
+RL_IP_PER_MINUTE = "5"
+RL_IP_PER_HOUR   = "50"
+RL_IP_PER_DAY    = "200"
 
-[[d1_databases]]
-binding = "DB"
-database_name = "blt_zero"
-database_id = "0fd8d04c-f434-48a1-a5d2-617b49ce79ff" # Replace with your actual D1 database ID
+RL_EMAIL_PER_HOUR       = "10"
+RL_EMAIL_DOMAIN_PER_HOUR = "20"
+RL_DISTINCT_EMAILS_PER_IP_PER_HOUR = "10"
+
+RL_GLOBAL_PER_MINUTE = "30"

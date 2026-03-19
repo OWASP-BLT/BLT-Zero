@@ -1,6 +1,5 @@
 import json
-from workers import Response, Headers
-import base64
+from workers import Response
 
 def json_response(data, status=200):
     """Create a JSON response."""

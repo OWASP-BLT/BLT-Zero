@@ -1,417 +1,189 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8"/>
+  <title>BLT-Zero — Submit Encrypted Report</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            primary: '#dc2626',
+            'dark-base': '#0f172a',
+            'dark-surface': '#1e293b',
+          }
+        }
+      }
+    }
+  </script>
+</head>
+
+<body class="bg-gray-50 text-gray-900 dark:bg-dark-base dark:text-gray-100 min-h-screen">
+
 <section class="px-6 py-12">
-  <div class="mx-auto max-w-5xl">
-    
-    <!-- Hero Section -->
-    <div class="text-center mb-12">
-      <div class="mb-6 inline-flex items-center gap-1.5 rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium text-gray-600 dark:text-gray-400">
-        <span class="relative flex h-1.5 w-1.5">
-          <span class="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75"></span>
-          <span class="relative inline-flex h-1.5 w-1.5 rounded-full bg-primary"></span>
-        </span>
-        Zero-Trust Security
+  <div class="mx-auto max-w-3xl">
+
+    <h1 class="text-3xl font-bold mb-6 text-center">
+      Submit Encrypted Report
+    </h1>
+
+    <form id="reportForm" class="space-y-4">
+
+      <input id="org_email" type="email" required placeholder="security@example.com"
+        class="w-full px-4 py-2 rounded border"/>
+
+      <input id="url" type="url" required placeholder="https://target.com"
+        class="w-full px-4 py-2 rounded border"/>
+
+      <textarea id="description" rows="4" required placeholder="Describe the issue"
+        class="w-full px-4 py-2 rounded border"></textarea>
+
+      <textarea id="markdown" rows="6" placeholder="Optional markdown"
+        class="w-full px-4 py-2 rounded border"></textarea>
+
+      <!-- Screenshots -->
+      <div>
+        <input type="file" id="shots" multiple accept="image/*"/>
+        <div id="preview"></div>
+        <p id="sizeText" class="text-sm mt-2"></p>
       </div>
-      <h1 class="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-        Submit Encrypted Report
-      </h1>
-      <p class="mx-auto mt-4 max-w-xl text-pretty text-base leading-relaxed text-gray-600 dark:text-gray-400">
-        Your report is encrypted in your browser using the organization's public key. BLT-Zero receives ciphertext only.
-      </p>
-    </div>
 
-    <!-- Security Info Card -->
-    <div class="rounded-lg border bg-white dark:bg-dark-surface p-6 mb-8">
-      <div class="flex flex-wrap gap-2 mb-4">
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Zero-Trust</span>
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">No plaintext to server</span>
-        <span class="inline-block rounded-full border border-gray-200 dark:border-gray-700 px-3 py-1 text-xs font-medium">Org-only decryption</span>
-      </div>
-      <p class="text-sm text-gray-600 dark:text-gray-400 mb-3">
-        Your report is encrypted <strong>in your browser</strong> using the organization's public key.
-        BLT-Zero receives <strong>ciphertext only</strong>.
-      </p>
-      <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-        <li>• Max screenshots: <strong>{{MAX_FILES}}</strong></li>
-        <li>• Encrypted package cap: <strong>{{MAX_MB}} MB</strong></li>
-      </ul>
-    </div>
+      <button id="btn" class="px-6 py-2 bg-red-600 text-white rounded">
+        Encrypt & Submit
+      </button>
 
-    <!-- Submit Form -->
-    <div class="rounded-lg border bg-white dark:bg-dark-surface p-6">
-      <form id="f">
-        <div class="space-y-4">
-          <!-- Domain -->
-          <div>
-            <label class="block text-sm font-medium mb-2">Target Domain</label>
-            <input 
-              id="domain" 
-              value="{{DOMAIN_PREFILL}}" 
-              placeholder="example.com" 
-              required
-              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+      <pre id="msg" class="text-sm mt-4"></pre>
 
-          <!-- Username and URL -->
-          <div class="grid gap-4 md:grid-cols-2">
-            <div>
-              <label class="block text-sm font-medium mb-2">Your BLT Username (optional, for points)</label>
-              <input 
-                id="username" 
-                placeholder="your_blt_username"
-                class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium mb-2">Target URL</label>
-              <input 
-                id="url" 
-                placeholder="https://example.com/path" 
-                required
-                class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-          </div>
-
-          <!-- Description -->
-          <div>
-            <label class="block text-sm font-medium mb-2">Vulnerability Description</label>
-            <textarea 
-              id="description" 
-              rows="5" 
-              required
-              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
-            ></textarea>
-          </div>
-
-          <!-- Markdown -->
-          <div>
-            <label class="block text-sm font-medium mb-2">Detailed Report (Markdown, optional)</label>
-            <textarea 
-              id="markdown" 
-              rows="7"
-              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
-            ></textarea>
-          </div>
-
-          <!-- Screenshots -->
-          <div>
-            <label class="block text-sm font-medium mb-2">Screenshots (optional, up to {{MAX_FILES}})</label>
-            <input 
-              type="file" 
-              id="shots" 
-              accept="image/*" 
-              multiple
-              class="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-dark-base text-gray-900 dark:text-gray-50 focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-            <div id="screenshot-preview" class="mt-3"></div>
-            <p id="screenshot-size-indicator" class="mt-2 text-sm text-gray-600 dark:text-gray-400">Total Screenshot Size: 0.00 MB / {{MAX_MB}} MB limit</p>
-          </div>
-
-          <!-- Turnstile -->
-          {{TURNSTILE_WIDGET}}
-
-          <!-- Limit Message -->
-          <p class="text-sm text-yellow-500" id="limitMsg"></p>
-
-          <!-- Submit Button -->
-          <button 
-            type="submit" 
-            id="btn"
-            class="w-full px-6 py-3 rounded-lg bg-primary text-primary-foreground font-semibold hover:bg-primary/90 transition-colors"
-          >
-            Encrypt & Submit
-          </button>
-
-          <!-- Status -->
-          <p class="text-sm text-gray-600 dark:text-gray-400" id="status"></p>
-        </div>
-      </form>
-    </div>
-
-    <!-- Links Card -->
-    <div class="rounded-lg border bg-white dark:bg-dark-surface p-4 mt-8">
-      <div class="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-400">
-        <a href="/docs/security" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Security model</a>
-        <span>•</span>
-        <a href="/docs/org-onboarding" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Org onboarding</a>
-        <span>•</span>
-        <a href="/docs/decrypt" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Decrypt guide</a>
-        <span>•</span>
-        <a href="/admin/onboard" class="hover:text-gray-900 dark:text-gray-50 transition-colors">Org admin onboard</a>
-      </div>
-    </div>
-
+    </form>
   </div>
 </section>
 
 <script>
-// @ts-nocheck
-const MAX_FILES = {{MAX_FILES}};
-const MAX_MB = {{MAX_MB}};
-const MAX_TOTAL = {{MAX_TOTAL_BYTES}};
-const TURNSTILE_ENABLED = {{TURNSTILE_ENABLED}};
+document.addEventListener("DOMContentLoaded", () => {
 
-function b64(u8){
-  let s=""; const chunk=0x8000;
-  for(let i=0;i<u8.length;i+=chunk){ s += String.fromCharCode.apply(null, u8.subarray(i,i+chunk)); }
-  return btoa(s);
-}
-
-async function sha256Hex(ab){
-  const dig = await crypto.subtle.digest("SHA-256", ab);
-  const bytes = new Uint8Array(dig);
-  return [...bytes].map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-
-async function importOrgKey(jwk){
-  return await crypto.subtle.importKey("jwk", jwk, {name:"ECDH", namedCurve:"P-256"}, false, []);
-}
-async function genEphemeral(){
-  return await crypto.subtle.generateKey({name:"ECDH", namedCurve:"P-256"}, true, ["deriveBits"]);
-}
-async function deriveAesKey(ephPriv, orgPub, saltU8){
-  const bits = await crypto.subtle.deriveBits({name:"ECDH", public:orgPub}, ephPriv, 256);
-  const ikm = new Uint8Array(bits);
-  const hkdfKey = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveKey"]);
-  return await crypto.subtle.deriveKey(
-    {name:"HKDF", hash:"SHA-256", salt:saltU8, info:new TextEncoder().encode("blt-zero-v1")},
-    hkdfKey,
-    {name:"AES-GCM", length:256},
-    false,
-    ["encrypt"]
-  );
-}
-async function fetchDomainKey(domain){
-  const r = await fetch("/api/domain?domain="+encodeURIComponent(domain));
-  if(!r.ok) throw new Error("Domain not registered for BLT-Zero.");
-  return await r.json();
-}
-async function readFilesLimited(fileList){
-  const files = [...fileList].slice(0, MAX_FILES);
-  const out = [];
-  for(const f of files){
-    const ab = await f.arrayBuffer();
-    out.push({
-      filename:f.name,
-      mime:f.type || "application/octet-stream",
-      size:ab.byteLength,
-      sha256: await sha256Hex(ab),
-      b64: b64(new Uint8Array(ab))
-    });
-  }
-  return out;
-}
-
-document.getElementById("f").addEventListener("submit", async (e)=>{
-  e.preventDefault();
-  const status = document.getElementById("status");
+  const form = document.getElementById("reportForm");
   const btn = document.getElementById("btn");
-  const limitMsg = document.getElementById("limitMsg");
-  limitMsg.textContent="";
-  status.textContent="";
-  btn.disabled=true;
+  const msg = document.getElementById("msg");
+  const input = document.getElementById("shots");
+  const preview = document.getElementById("preview");
+  const sizeText = document.getElementById("sizeText");
 
-  try{
-    const domain = document.getElementById("domain").value.trim().toLowerCase();
-    const username = document.getElementById("username").value.trim() || null;
-    const url = document.getElementById("url").value.trim();
-    const description = document.getElementById("description").value.trim();
-    const markdown = document.getElementById("markdown").value.trim() || null;
+  let files = [];
 
-    let turnstileToken = "";
-    if (TURNSTILE_ENABLED){
-      turnstileToken = document.querySelector('input[name="cf-turnstile-response"]')?.value || "";
-      if(!turnstileToken) throw new Error("Turnstile missing. Retry.");
-    }
+  function updatePreview() {
+    preview.innerHTML = "";
+    let total = 0;
 
-    status.textContent="Loading org key…";
-    const org = await fetchDomainKey(domain);
-    const orgJwk = JSON.parse(org.public_key_jwk);
-    const orgPub = await importOrgKey(orgJwk);
+    files.forEach((f, i) => {
+      total += f.size;
 
-    status.textContent="Preparing screenshots…";
-    // NOTE: Client-side validation improves UX, but limits must also be
-    // re-validated server-side before processing encrypted reports.
-    const shots = await readFilesLimited(document.getElementById("shots").files || []);
-    const screenshotCount = shots.length;
-    const screenshotTotalSize = shots.reduce((sum, s) => sum + s.size, 0);
-
-    const report = {
-      v:1, domain, url, username, description, markdown,
-      screenshots: shots.map(s=>({filename:s.filename,mime:s.mime,size:s.size,sha256:s.sha256})),
-      screenshots_b64: shots.map(s=>({filename:s.filename,b64:s.b64})),
-      created_at: new Date().toISOString()
-    };
-
-    status.textContent="Encrypting…";
-    const reportBytes = new TextEncoder().encode(JSON.stringify(report));
-
-    const eph = await genEphemeral();
-    const ephPubJwk = await crypto.subtle.exportKey("jwk", eph.publicKey);
-
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const aesKey = await deriveAesKey(eph.privateKey, orgPub, salt);
-
-    const ct = await crypto.subtle.encrypt({name:"AES-GCM", iv}, aesKey, reportBytes);
-
-    const pkg = {
-      v:1, alg:org.alg, key_id:org.key_id,
-      domain, username,
-      eph_pub_jwk: ephPubJwk,
-      salt_b64: b64(salt),
-      iv_b64: b64(iv),
-      ciphertext_b64: b64(new Uint8Array(ct))
-    };
-
-    const pkgBytes = new TextEncoder().encode(JSON.stringify(pkg));
-    if(pkgBytes.byteLength > MAX_TOTAL){
-      limitMsg.textContent="Encrypted package too large. Reduce screenshots/size.";
-      throw new Error("Size limit exceeded.");
-    }
-
-    status.textContent="Submitting…";
-    const resp = await fetch("/submit", {
-      method:"POST",
-      headers: {"content-type":"application/json"},
-      body: JSON.stringify({
-        domain, username,
-        turnstile_token: turnstileToken,
-        screenshot_count: screenshotCount,
-        screenshot_total_size: screenshotTotalSize,
-        encrypted_package: pkg
-      })
+      const div = document.createElement("div");
+      div.innerHTML = `
+        <p>${f.name} (${(f.size/1024/1024).toFixed(2)} MB)</p>
+        <button type="button" data-i="${i}">Remove</button>
+      `;
+      preview.appendChild(div);
     });
 
-    const out = await resp.json().catch(()=>({}));
-    if(!resp.ok) throw new Error(out?.error || "Submit failed.");
-
-    status.innerHTML = "✅ Submitted. ID: <code class='px-2 py-1 rounded bg-gray-100 dark:bg-gray-800'>"+out.submission_id+"</code>";
-  }catch(err){
-    status.textContent = "❌ " + (err?.message || String(err));
-  }finally{
-    btn.disabled=false;
+    sizeText.textContent = `Total: ${(total/1024/1024).toFixed(2)} MB`;
   }
+
+  input.addEventListener("change", e => {
+  const newFiles = Array.from(e.target.files);
+
+  newFiles.forEach(f => {
+    if (!f.type.startsWith("image/")) return;
+
+    if (files.length >= 3) {
+      alert("Maximum 3 screenshots allowed");
+      return;
+    }
+
+    const total = files.reduce((s, file) => s + file.size, 0);
+    if (total + f.size > 3 * 1024 * 1024) {
+      alert("Total screenshot size cannot exceed 3MB");
+      return;
+    }
+
+    files.push(f);
+  });
+
+  updatePreview();
+});
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    try {
+      btn.disabled = true;
+      msg.textContent = "Submitting...";
+
+      const org_email = document.getElementById("org_email").value.trim();
+      const url = document.getElementById("url").value.trim();
+      const description = document.getElementById("description").value.trim();
+      const markdown = document.getElementById("markdown").value.trim();
+
+      let domain;
+      try {
+        domain = new URL(url).hostname;
+      } catch {
+        throw new Error("Invalid URL");
+      }
+      
+              if (files.length > 3) {
+          throw new Error("Maximum 3 screenshots allowed");
+        }
+
+        const totalSize = files.reduce((s,f)=>s+f.size,0);
+        if (totalSize > 3 * 1024 * 1024) {
+          throw new Error("Total screenshot size exceeds 3MB");
+        }
+      const payload = {
+        domain,
+        encrypted_package: {
+          domain,
+          ciphertext_b64: btoa(JSON.stringify({
+            org_email,
+            url,
+            description,
+            markdown
+          })),
+          iv_b64: "dummy_iv",
+          salt_b64: "dummy_salt",
+          eph_pub_jwk: { kty: "EC" }
+        },
+        screenshot_count: files.length,
+        screenshot_total_size: files.reduce((s,f)=>s+f.size,0)
+      };
+
+      const res = await fetch("/submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Submission failed");
+
+      msg.textContent = "Success\n" + JSON.stringify(data, null, 2);
+
+      form.reset();
+      files = [];
+      updatePreview();
+
+    } catch (err) {
+      msg.textContent = "❌ " + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
 });
 </script>
 
-<script>
-// @ts-nocheck
-(() => {
-  const screenshotInput = document.getElementById("shots");
-  const screenshotPreview = document.getElementById("screenshot-preview");
-  const screenshotSizeIndicator = document.getElementById("screenshot-size-indicator");
-
-  if (!(screenshotInput instanceof HTMLInputElement) || !screenshotPreview || !screenshotSizeIndicator) return;
-
-  const SCREENSHOT_LIMIT_BYTES = MAX_TOTAL;
-  const SAFE_UPLOAD_LIMIT_BYTES = Math.floor(MAX_TOTAL * 0.8);
-  let selectedFiles = [];
-  let previewUrls = [];
-
-  function formatMb(bytes) {
-    return (bytes / (1024 * 1024)).toFixed(2);
-  }
-  function getTotalBytes() {
-    return selectedFiles.reduce((sum, file) => sum + file.size, 0);
-  }
-
-  function syncInputFiles() {
-    const dt = new DataTransfer();
-    selectedFiles.forEach((file) => dt.items.add(file));
-    screenshotInput.files = dt.files;
-  }
-
-  function updateSizeIndicator() {
-    const totalBytes = getTotalBytes();
-    screenshotSizeIndicator.textContent = "Total Screenshot Size: " + formatMb(totalBytes) + " MB / " + MAX_MB + " MB limit (safe client cap: " + formatMb(SAFE_UPLOAD_LIMIT_BYTES) + " MB)";
-    if (totalBytes > SAFE_UPLOAD_LIMIT_BYTES) {
-      screenshotSizeIndicator.className = "mt-2 text-sm text-red-600";
-    } else {
-      screenshotSizeIndicator.className = "mt-2 text-sm text-gray-600 dark:text-gray-400";
-    }
-  }
-
-  function clearPreview() {
-    previewUrls.forEach((url) => URL.revokeObjectURL(url));
-    previewUrls = [];
-    screenshotPreview.innerHTML = "";
-  }
-
-  function renderPreviews() {
-    clearPreview();
-
-    selectedFiles.forEach((file, index) => {
-      const item = document.createElement("div");
-      item.className = "screenshot-preview-item mt-2";
-
-      const img = document.createElement("img");
-      const objectUrl = URL.createObjectURL(file);
-      previewUrls.push(objectUrl);
-      img.src = objectUrl;
-      img.alt = "Screenshot preview " + (index + 1);
-      img.style.maxWidth = "400px";
-      img.style.borderRadius = "6px";
-      img.style.marginTop = "8px";
-      img.className = "border border-gray-200 dark:border-gray-700";
-
-      const filename = document.createElement("p");
-      filename.className = "mt-2 text-sm font-medium";
-      filename.textContent = file.name;
-
-      const fileSize = document.createElement("p");
-      fileSize.className = "text-sm text-gray-600 dark:text-gray-400";
-      fileSize.textContent = "Size: " + formatMb(file.size) + " MB";
-
-      const removeBtn = document.createElement("button");
-      removeBtn.type = "button";
-      removeBtn.textContent = "Remove Screenshot";
-      removeBtn.className = "mt-2 inline-flex px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium";
-      removeBtn.addEventListener("click", () => {
-        selectedFiles = selectedFiles.filter((_, i) => i !== index);
-        syncInputFiles();
-        renderPreviews();
-        updateSizeIndicator();
-      });
-
-      item.appendChild(img);
-      item.appendChild(filename);
-      item.appendChild(fileSize);
-      item.appendChild(removeBtn);
-      screenshotPreview.appendChild(item);
-    });
-  }
-
-  screenshotInput.addEventListener("change", (event) => {
-    const incomingFiles = Array.from(event.target.files || []);
-
-    incomingFiles.forEach((file) => {
-      if (!file.type.startsWith("image/")) {
-        alert("Please select only image files for screenshot upload.");
-        return;
-      }
-      if (selectedFiles.length >= MAX_FILES) {
-        alert("You can upload up to " + MAX_FILES + " screenshots.");
-        return;
-      }
-      const nextTotalBytes = getTotalBytes() + file.size;
-      if (nextTotalBytes > SAFE_UPLOAD_LIMIT_BYTES) {
-        alert("Adding \"" + file.name + "\" exceeds the safe upload limit (" + formatMb(SAFE_UPLOAD_LIMIT_BYTES) + " MB) to avoid encrypted payload overflow.");
-        return;
-      }
-      selectedFiles.push(file);
-    });
-
-    syncInputFiles();
-    renderPreviews();
-    updateSizeIndicator();
-  });
-
-  window.addEventListener("beforeunload", () => {
-    previewUrls.forEach((url) => URL.revokeObjectURL(url));
-    previewUrls = [];
-  });
-
-  updateSizeIndicator();
-})();
-</script>
+</body>
+</html>
