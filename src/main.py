@@ -43,8 +43,6 @@ RATE_LIMIT_PER_MINUTE = 5
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         env = self.env
-        ctx = self.ctx
-
         max_files = MAX_FILES
         max_upload_bytes = _to_int(
             getattr(env, "MAX_UPLOAD_BYTES", None),
