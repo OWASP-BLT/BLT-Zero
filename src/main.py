@@ -35,18 +35,22 @@ def _to_int(value, default, *, minimum=None):
 
 
 # Config defaults
-MAX_FILES = 3
-MAX_MB = 3
 RATE_LIMIT_PER_MINUTE = 5
+DEFAULT_ZIP_MAX_FILES = 5
+DEFAULT_ZIP_MAX_TOTAL_BYTES = 5242880
 
 
 class Default(WorkerEntrypoint):
     async def fetch(self, request):
         env = self.env
-        max_files = MAX_FILES
+        max_files = _to_int(
+            getattr(env, "ZIP_MAX_FILES", None),
+            DEFAULT_ZIP_MAX_FILES,
+            minimum=1,
+        )
         max_upload_bytes = _to_int(
-            getattr(env, "MAX_UPLOAD_BYTES", None),
-            MAX_MB * 1024 * 1024,
+            getattr(env, "ZIP_MAX_TOTAL_BYTES", None),
+            DEFAULT_ZIP_MAX_TOTAL_BYTES,
             minimum=1,
         )
 
@@ -62,8 +66,8 @@ class Default(WorkerEntrypoint):
                 submit_page({
                     "domainPrefill": domain_prefill,
                     "turnstileSiteKey": env.TURNSTILE_SITE_KEY if ts_enabled else "",
-                    "maxFiles": max_files,
-                    "maxTotalBytes": max_upload_bytes,
+                    "MAX_FILES": str(max_files),
+                    "MAX_TOTAL": str(max_upload_bytes),
                 })
             )
 
@@ -80,17 +84,24 @@ class Default(WorkerEntrypoint):
         # Admin page
         if request.method == "GET" and url.pathname == "/admin/onboard":
             return html_response(
-                admin_onboard_page(env.TURNSTILE_SITE_KEY if ts_enabled else "")
+                admin_onboard_page()
             )
 
         # Admin onboard
         if request.method == "POST" and url.pathname == "/admin/onboard":
             ip = get_client_ip(request)
+            bucket = minute_bucket_iso(datetime.utcnow())
+            count = await rate_limit_hit(env, f"ip:{ip}:{bucket}", bucket)
+
+            if count > RATE_LIMIT_PER_MINUTE:
+                return Response.json({"error": "rate limit exceeded"}, status=429)
 
             try:
                 payload = await request.json()
             except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
+            if not isinstance(payload, dict):
+                return Response.json({"error": "invalid payload"}, status=400)
 
             token = str(payload.get("admin_token", ""))
             turnstile_token = str(payload.get("turnstile_token", ""))
@@ -154,7 +165,11 @@ class Default(WorkerEntrypoint):
             if not row:
                 return Response.json({"error": "not found"}, status=404)
 
-            return Response.json(row)
+            return Response.json({
+                "domain": row["domain"],
+                "key_id": row["key_id"],
+                "public_key_jwk": row["public_key_jwk"],
+            })
 
         # Submit
         if request.method == "POST" and url.pathname == "/submit":
@@ -169,9 +184,13 @@ class Default(WorkerEntrypoint):
                 payload = await request.json()
             except Exception:
                 return Response.json({"error": "invalid json"}, status=400)
+            if not isinstance(payload, dict):
+                return Response.json({"error": "invalid payload"}, status=400)
 
             domain = normalize_domain(payload.get("domain", ""))
             encrypted_package = payload.get("encrypted_package")
+            if not isinstance(encrypted_package, dict):
+                return Response.json({"error": "invalid encrypted_package"}, status=400)
 
             if not domain or not encrypted_package:
                 return Response.json({"error": "missing data"}, status=400)
@@ -188,7 +207,7 @@ class Default(WorkerEntrypoint):
             if len(pkg_bytes) > max_upload_bytes:
                 return Response.json({"error": "too large"}, status=413)
 
-            artifact_hash = sha256_hex(pkg_bytes)
+            artifact_hash = await sha256_hex(pkg_bytes)
             submission_id = str(js_crypto.randomUUID())
 
             await send_email(
@@ -206,6 +225,10 @@ class Default(WorkerEntrypoint):
                 "artifact_hash": artifact_hash,
             })
 
-            return Response.json({"ok": True, "submission_id": submission_id})
+            return Response.json({
+                "ok": True,
+                "submission_id": submission_id,
+                "artifact_hash": artifact_hash,
+            })
 
         return Response("Not found", status=404)

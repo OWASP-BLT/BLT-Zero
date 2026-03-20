@@ -57,8 +57,8 @@ def layout(title: str, body: str, include_turnstile_script: bool) -> str:
     })
 
 def submit_page(context: dict) -> str:
-    max_files = str(context.get("maxFiles", 5))
-    max_total = str(context.get("maxTotalBytes", 5242880))
+    max_files = str(context.get("MAX_FILES", 5))
+    max_total = str(context.get("MAX_TOTAL", 5242880))
     
     # 1. Read the file using your existing utility
     submit_html = read_html_file("submit.html")

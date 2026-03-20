@@ -4,7 +4,7 @@ from datetime import datetime
 
 def normalize_domain(input: str) -> str:
     """Normalize domain name to lowercase and trimmed."""
-    return input.strip().lower()
+    return input.strip().lower() if input else ""
 
 
 def get_client_ip(req) -> str:
@@ -16,10 +16,20 @@ def minute_bucket_iso(date: datetime = None) -> str:
     """Generate a time bucket string for rate limiting (minute precision)."""
     if date is None:
         date = datetime.utcnow()
-    
     return date.strftime("%Y-%m-%dT%H:%M")
 
 
 async def sha256_hex(data: bytes) -> str:
     """Calculate SHA-256 hash and return as hex string."""
     return hashlib.sha256(data).hexdigest()
+
+
+# --- Turnstile (kept minimal, not in scope) ---
+def turnstile_enabled(env=None):
+    """Return whether Turnstile is enabled."""
+    return False  # disabled for now (OK for this PR scope)
+
+
+async def verify_turnstile(env, token: str, ip: str):
+    """Stub verification (always passes for now)."""
+    return True
